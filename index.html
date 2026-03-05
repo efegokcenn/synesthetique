@@ -9,13 +9,12 @@
 
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 :root{
-  --bg:#07070d;
+  --bg:#060608;
   --surface:rgba(255,255,255,0.04);
-  --border:rgba(255,255,255,0.08);
+  --border:rgba(255,255,255,0.09);
   --accent:#d4b896;
-  --text:rgba(212,184,150,0.9);
-  --dim:rgba(212,184,150,0.35);
-  --red:#ff4466;
+  --text:rgba(235,225,210,0.92);
+  --dim:rgba(235,225,210,0.4);
 }
 html,body{width:100%;height:100%;background:var(--bg);color:var(--text);font-family:'Space Mono',monospace;overflow:hidden;user-select:none;}
 
@@ -23,232 +22,208 @@ html,body{width:100%;height:100%;background:var(--bg);color:var(--text);font-fam
 #canvas{position:fixed;inset:0;width:100%;height:100%;}
 #freq-canvas{position:fixed;bottom:0;left:0;width:100%;height:100px;z-index:5;pointer-events:none;}
 
+/* ─── LANDING BACKGROUND CANVAS ─── */
+#landing-canvas{position:fixed;inset:0;width:100%;height:100%;z-index:0;}
+
 /* ─── LANDING ─── */
 #landing{
-  position:fixed;inset:0;z-index:50;
-  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:48px;
-  background:var(--bg);
-  transition:opacity .7s ease,visibility .7s;
+  position:fixed;inset:0;z-index:10;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:56px;
+  transition:opacity .8s ease,visibility .8s;
 }
-#landing.gone{opacity:0;visibility:hidden;}
+#landing.gone{opacity:0;visibility:hidden;pointer-events:none;}
 
-.brand{text-align:center;}
+.brand{text-align:center;position:relative;z-index:1;}
 .brand-name{
   font-family:'Cormorant Garamond',serif;font-style:italic;
-  font-size:clamp(36px,5vw,72px);letter-spacing:.12em;color:var(--accent);
+  font-size:clamp(52px,7vw,100px);
+  letter-spacing:.1em;
+  color:#ede0cc;
   line-height:1;
+  text-shadow:0 0 80px rgba(212,184,150,.25);
 }
-.brand-tag{font-size:10px;letter-spacing:.5em;color:var(--dim);margin-top:6px;text-transform:uppercase;}
+.brand-tag{
+  font-size:11px;letter-spacing:.55em;
+  color:rgba(235,225,210,.45);
+  margin-top:10px;text-transform:uppercase;
+}
 
-.input-panel{display:flex;flex-direction:column;gap:16px;width:min(520px,90vw);}
+.input-panel{
+  display:flex;flex-direction:column;align-items:center;gap:20px;
+  width:min(480px,88vw);position:relative;z-index:1;
+}
 
 /* Drop zone */
 .dropbox{
-  border:1px solid var(--border);padding:36px;
-  display:flex;flex-direction:column;align-items:center;gap:12px;
-  cursor:pointer;position:relative;transition:border-color .3s,background .3s;
+  width:100%;
+  border:1px solid rgba(235,225,210,.12);
+  padding:48px 40px;
+  display:flex;flex-direction:column;align-items:center;gap:14px;
+  cursor:pointer;position:relative;
+  transition:border-color .35s,background .35s;
+  background:rgba(255,255,255,.018);
+  backdrop-filter:blur(6px);
 }
 .dropbox::before,.dropbox::after{
-  content:'';position:absolute;width:20px;height:20px;
-  border-color:rgba(212,184,150,.4);border-style:solid;
+  content:'';position:absolute;width:22px;height:22px;
+  border-color:rgba(212,184,150,.35);border-style:solid;
+  transition:border-color .3s;
 }
 .dropbox::before{top:-1px;left:-1px;border-width:1px 0 0 1px;}
 .dropbox::after{bottom:-1px;right:-1px;border-width:0 1px 1px 0;}
-.dropbox:hover,.dropbox.drag-over{border-color:rgba(212,184,150,.4);background:rgba(212,184,150,.03);}
-.dropbox-title{font-family:'Cormorant Garamond',serif;font-size:22px;font-style:italic;color:var(--accent);}
-.dropbox-sub{font-size:9px;letter-spacing:.3em;color:var(--dim);text-transform:uppercase;}
-
-/* divider */
-.or{display:flex;align-items:center;gap:16px;font-size:9px;letter-spacing:.3em;color:var(--dim);}
-.or::before,.or::after{content:'';flex:1;height:1px;background:var(--border);}
-
-/* YouTube input */
-.yt-row{display:flex;gap:8px;}
-.yt-input{
-  flex:1;background:var(--surface);border:1px solid var(--border);
-  color:var(--text);font-family:'Space Mono',monospace;font-size:11px;
-  padding:10px 14px;outline:none;transition:border-color .2s;
+.dropbox:hover,.dropbox.drag-over{
+  border-color:rgba(212,184,150,.35);
+  background:rgba(212,184,150,.04);
 }
-.yt-input:focus{border-color:rgba(212,184,150,.4);}
-.yt-input::placeholder{color:var(--dim);}
-.btn-sm{
-  background:none;border:1px solid var(--border);color:var(--accent);
-  font-family:'Space Mono',monospace;font-size:9px;letter-spacing:.2em;
-  padding:10px 18px;cursor:pointer;text-transform:uppercase;transition:all .2s;white-space:nowrap;
-}
-.btn-sm:hover{background:rgba(212,184,150,.06);border-color:rgba(212,184,150,.4);}
+.dropbox:hover::before,.dropbox:hover::after,
+.dropbox.drag-over::before,.dropbox.drag-over::after{border-color:rgba(212,184,150,.7);}
 
-.yt-note{font-size:9px;color:var(--dim);letter-spacing:.05em;line-height:1.6;text-align:center;}
+.dropbox-icon{
+  width:36px;height:36px;opacity:.35;margin-bottom:4px;
+}
+.dropbox-title{
+  font-family:'Cormorant Garamond',serif;font-size:26px;
+  font-style:italic;color:#ede0cc;letter-spacing:.04em;
+}
+.dropbox-sub{font-size:10px;letter-spacing:.3em;color:rgba(235,225,210,.38);text-transform:uppercase;}
+.dropbox-formats{font-size:9px;letter-spacing:.18em;color:rgba(235,225,210,.2);margin-top:2px;}
 
 input[type=file]{display:none;}
 
 /* ─── HUD ─── */
 #hud{
   position:fixed;inset:0;z-index:20;pointer-events:none;
-  opacity:0;transition:opacity .8s;
+  opacity:0;transition:opacity .9s;
 }
 #hud.visible{opacity:1;}
 
 /* top bar */
 #topbar{
   position:absolute;top:0;left:0;right:0;
-  display:flex;align-items:flex-start;justify-content:space-between;
-  padding:20px 28px;
-  background:linear-gradient(to bottom,rgba(7,7,13,.85) 0%,transparent 100%);
+  display:flex;align-items:center;justify-content:space-between;
+  padding:22px 32px;
+  background:linear-gradient(to bottom,rgba(6,6,8,.88) 0%,transparent 100%);
 }
-.logo-sm{font-family:'Cormorant Garamond',serif;font-style:italic;font-size:16px;letter-spacing:.15em;color:var(--accent);opacity:.7;cursor:pointer;pointer-events:all;transition:opacity .2s;}
+.logo-sm{
+  font-family:'Cormorant Garamond',serif;font-style:italic;
+  font-size:18px;letter-spacing:.18em;color:var(--accent);
+  opacity:.65;cursor:pointer;pointer-events:all;
+  transition:opacity .2s;
+}
 .logo-sm:hover{opacity:1;}
 
-#stats{display:flex;gap:24px;}
-.stat{display:flex;flex-direction:column;align-items:flex-end;gap:1px;}
-.stat-val{font-size:18px;font-weight:700;color:var(--accent);}
-.stat-lbl{font-size:8px;letter-spacing:.3em;color:var(--dim);text-transform:uppercase;}
+#stats{display:flex;gap:28px;}
+.stat{display:flex;flex-direction:column;align-items:flex-end;gap:2px;}
+.stat-val{font-size:20px;font-weight:700;color:#ede0cc;letter-spacing:.02em;}
+.stat-lbl{font-size:8px;letter-spacing:.35em;color:var(--dim);text-transform:uppercase;}
 
 /* mode switcher */
 #mode-bar{
-  position:absolute;top:50%;right:24px;transform:translateY(-50%);
+  position:absolute;top:50%;right:26px;transform:translateY(-50%);
   display:flex;flex-direction:column;gap:6px;pointer-events:all;
 }
 .mode-btn{
-  background:var(--surface);border:1px solid var(--border);
-  color:var(--dim);font-family:'Space Mono',monospace;
-  font-size:8px;letter-spacing:.2em;padding:8px 10px;
+  background:rgba(6,6,8,.6);
+  border:1px solid rgba(255,255,255,.07);
+  color:rgba(235,225,210,.3);
+  font-family:'Space Mono',monospace;
+  font-size:8px;letter-spacing:.2em;padding:9px 12px;
   cursor:pointer;text-transform:uppercase;transition:all .2s;
-  writing-mode:horizontal-tb;white-space:nowrap;
-  text-align:center;min-width:72px;
+  white-space:nowrap;text-align:center;min-width:76px;
+  backdrop-filter:blur(4px);
 }
-.mode-btn:hover{color:var(--accent);border-color:rgba(212,184,150,.3);}
-.mode-btn.active{color:var(--accent);border-color:var(--accent);background:rgba(212,184,150,.07);}
+.mode-btn:hover{color:var(--accent);border-color:rgba(212,184,150,.25);}
+.mode-btn.active{
+  color:#ede0cc;border-color:rgba(212,184,150,.6);
+  background:rgba(212,184,150,.08);
+}
 
 /* bottom bar */
 #bottombar{
   position:absolute;bottom:0;left:0;right:0;
-  padding:16px 28px 20px;
-  background:linear-gradient(to top,rgba(7,7,13,.9) 0%,transparent 100%);
-  display:flex;flex-direction:column;gap:10px;
+  padding:18px 32px 24px;
+  background:linear-gradient(to top,rgba(6,6,8,.92) 0%,transparent 100%);
+  display:flex;flex-direction:column;gap:12px;
 }
 #progress-wrap{
-  width:100%;height:2px;background:rgba(212,184,150,.1);
-  cursor:pointer;pointer-events:all;transition:height .2s;
-  position:relative;
+  width:100%;height:1px;background:rgba(235,225,210,.1);
+  cursor:pointer;pointer-events:all;
+  position:relative;transition:height .2s;
 }
-#progress-wrap:hover{height:4px;}
-#progress-fill{height:100%;background:var(--accent);width:0%;pointer-events:none;}
+#progress-wrap:hover{height:3px;}
+#progress-fill{height:100%;background:var(--accent);width:0%;pointer-events:none;transition:width .1s linear;}
 #progress-head{
   position:absolute;right:0;top:50%;transform:translate(50%,-50%);
-  width:8px;height:8px;border-radius:50%;background:var(--accent);
-  pointer-events:none;display:none;
+  width:9px;height:9px;border-radius:50%;background:var(--accent);
+  pointer-events:none;opacity:0;transition:opacity .2s;
 }
-#progress-wrap:hover #progress-head{display:block;}
+#progress-wrap:hover #progress-head{opacity:1;}
 
 .bottom-row{display:flex;align-items:center;justify-content:space-between;gap:16px;}
 
-#track-info{display:flex;flex-direction:column;gap:3px;min-width:0;flex:1;}
+#track-info{display:flex;flex-direction:column;gap:4px;min-width:0;flex:1;}
 #track-name{
-  font-family:'Cormorant Garamond',serif;font-size:20px;font-style:italic;
-  color:var(--accent);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  font-family:'Cormorant Garamond',serif;font-size:22px;font-style:italic;
+  color:#ede0cc;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  letter-spacing:.03em;
 }
-#track-sub{font-size:8px;letter-spacing:.25em;color:var(--dim);text-transform:uppercase;}
+#track-sub{font-size:8px;letter-spacing:.3em;color:var(--dim);text-transform:uppercase;}
 
 /* playback controls */
-#controls{display:flex;align-items:center;gap:12px;pointer-events:all;flex-shrink:0;}
+#controls{display:flex;align-items:center;gap:14px;pointer-events:all;flex-shrink:0;}
 .icon-btn{
-  background:none;border:none;cursor:pointer;color:var(--accent);
-  opacity:.6;transition:opacity .2s;padding:4px;display:flex;align-items:center;
+  background:none;border:none;cursor:pointer;color:#ede0cc;
+  opacity:.55;transition:opacity .2s;padding:4px;display:flex;align-items:center;
 }
 .icon-btn:hover{opacity:1;}
-.icon-btn svg{width:20px;height:20px;fill:currentColor;}
+.icon-btn svg{width:22px;height:22px;fill:currentColor;}
 #vol-slider{
-  -webkit-appearance:none;width:64px;height:2px;
-  background:rgba(212,184,150,.2);outline:none;cursor:pointer;
+  -webkit-appearance:none;width:72px;height:2px;
+  background:rgba(235,225,210,.18);outline:none;cursor:pointer;
 }
-#vol-slider::-webkit-slider-thumb{-webkit-appearance:none;width:10px;height:10px;background:var(--accent);border-radius:50%;}
+#vol-slider::-webkit-slider-thumb{
+  -webkit-appearance:none;width:11px;height:11px;
+  background:var(--accent);border-radius:50%;
+}
 
 /* right controls */
-.right-controls{display:flex;align-items:center;gap:10px;pointer-events:all;flex-shrink:0;}
+.right-controls{display:flex;align-items:center;gap:12px;pointer-events:all;flex-shrink:0;}
 #mood-pill{
-  font-size:9px;letter-spacing:.2em;color:var(--dim);
-  border:1px solid var(--border);padding:5px 12px;
-  font-family:'Cormorant Garamond',serif;font-style:italic;font-size:14px;
+  font-family:'Cormorant Garamond',serif;font-style:italic;
+  font-size:15px;letter-spacing:.08em;
+  color:rgba(235,225,210,.45);
+  border:1px solid rgba(235,225,210,.1);
+  padding:5px 14px;
 }
-.ctrl-btn{
-  background:var(--surface);border:1px solid var(--border);
-  color:var(--dim);font-family:'Space Mono',monospace;
-  font-size:8px;letter-spacing:.15em;padding:6px 10px;
-  cursor:pointer;text-transform:uppercase;transition:all .2s;
+.btn-sm{
+  background:rgba(6,6,8,.5);
+  border:1px solid rgba(235,225,210,.15);
+  color:rgba(235,225,210,.7);
+  font-family:'Space Mono',monospace;font-size:9px;letter-spacing:.2em;
+  padding:9px 18px;cursor:pointer;text-transform:uppercase;
+  transition:all .25s;white-space:nowrap;backdrop-filter:blur(4px);
 }
-.ctrl-btn:hover{color:var(--accent);border-color:rgba(212,184,150,.3);}
-.ctrl-btn.active{color:var(--accent);border-color:rgba(212,184,150,.5);background:rgba(212,184,150,.06);}
-
-/* ─── TAP BPM OVERLAY ─── */
-#tap-overlay{
-  position:fixed;inset:0;z-index:60;
-  background:rgba(7,7,13,.92);backdrop-filter:blur(8px);
-  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:32px;
-  opacity:0;visibility:hidden;transition:all .3s;
-}
-#tap-overlay.open{opacity:1;visibility:visible;}
-.tap-title{font-family:'Cormorant Garamond',serif;font-style:italic;font-size:32px;color:var(--accent);}
-#tap-btn{
-  width:180px;height:180px;border-radius:50%;
-  border:1px solid rgba(212,184,150,.3);background:rgba(212,184,150,.05);
-  color:var(--accent);font-family:'Space Mono',monospace;
-  font-size:11px;letter-spacing:.2em;cursor:pointer;
-  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;
-  transition:all .1s;text-transform:uppercase;
-}
-#tap-btn:active{background:rgba(212,184,150,.12);transform:scale(.97);}
-#tap-bpm-display{font-size:48px;font-weight:700;color:var(--accent);}
-#tap-bpm-sub{font-size:9px;letter-spacing:.3em;color:var(--dim);}
-.tap-actions{display:flex;gap:12px;}
-
-/* ─── KEY OVERLAY ─── */
-#key-overlay{
-  position:fixed;inset:0;z-index:60;
-  background:rgba(7,7,13,.92);backdrop-filter:blur(8px);
-  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:28px;
-  opacity:0;visibility:hidden;transition:all .3s;
-}
-#key-overlay.open{opacity:1;visibility:visible;}
-.key-title{font-family:'Cormorant Garamond',serif;font-style:italic;font-size:32px;color:var(--accent);}
-.key-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;width:min(400px,90vw);}
-.key-chip{
-  background:var(--surface);border:1px solid var(--border);
-  color:var(--dim);font-family:'Space Mono',monospace;font-size:11px;
-  padding:12px 8px;cursor:pointer;text-align:center;
-  transition:all .2s;
-}
-.key-chip:hover{color:var(--accent);border-color:rgba(212,184,150,.4);}
-.key-chip.selected{color:var(--bg);background:var(--accent);border-color:var(--accent);}
-.key-modes{display:flex;gap:8px;}
-.key-mode-btn{
-  background:var(--surface);border:1px solid var(--border);
-  color:var(--dim);font-family:'Space Mono',monospace;font-size:9px;
-  letter-spacing:.2em;padding:8px 20px;cursor:pointer;text-transform:uppercase;transition:all .2s;
-}
-.key-mode-btn.active{color:var(--accent);border-color:rgba(212,184,150,.5);}
+.btn-sm:hover{background:rgba(212,184,150,.07);border-color:rgba(212,184,150,.4);color:#ede0cc;}
 
 /* ─── NOTIFICATION ─── */
 #notif{
-  position:fixed;top:80px;left:50%;transform:translateX(-50%);
-  background:rgba(20,20,30,.95);border:1px solid var(--border);
-  font-size:10px;letter-spacing:.15em;color:var(--accent);
-  padding:10px 24px;z-index:80;
+  position:fixed;top:76px;left:50%;transform:translateX(-50%);
+  background:rgba(14,14,20,.96);border:1px solid rgba(235,225,210,.1);
+  font-size:9px;letter-spacing:.2em;color:var(--accent);
+  padding:10px 28px;z-index:80;
   opacity:0;transition:opacity .3s;pointer-events:none;
-  text-transform:uppercase;
+  text-transform:uppercase;white-space:nowrap;
 }
 #notif.show{opacity:1;}
 
-/* beat flash ring */
-#beat-ring{
-  position:fixed;inset:0;pointer-events:none;z-index:4;
-  opacity:0;transition:opacity .05s;
-}
+/* beat flash */
+#beat-ring{position:fixed;inset:0;pointer-events:none;z-index:4;opacity:0;transition:opacity .05s;}
 </style>
 </head>
 <body>
 
 <div id="beat-ring"></div>
+<canvas id="landing-canvas"></canvas>
 <canvas id="canvas"></canvas>
 <canvas id="freq-canvas"></canvas>
 
@@ -260,47 +235,14 @@ input[type=file]{display:none;}
   </div>
   <div class="input-panel">
     <div class="dropbox" id="dropbox">
-      <div class="dropbox-title">drop an audio file</div>
-      <div class="dropbox-sub">mp3 · wav · ogg · flac · aac · m4a</div>
+      <svg class="dropbox-icon" viewBox="0 0 24 24" fill="none" stroke="rgba(235,225,210,0.6)" stroke-width="1.2">
+        <path d="M9 18V12m0 0l-2 2m2-2l2 2M3 16c0 2.2 1.8 4 4 4h10c2.2 0 4-1.8 4-4 0-1.9-1.3-3.4-3.1-3.9C17.6 8.9 15.5 7 13 7c-2 0-3.8 1.1-4.8 2.8C6.3 10 5 11.4 5 13c0 .4.1.8.2 1.2"/>
+      </svg>
+      <div class="dropbox-title">drop a track here</div>
+      <div class="dropbox-sub">or click to browse</div>
+      <div class="dropbox-formats">mp3 · wav · ogg · flac · aac · m4a</div>
       <input type="file" id="file-input" accept="audio/*">
     </div>
-    <div class="or">or</div>
-    <div class="yt-row">
-      <input class="yt-input" id="yt-input" type="text" placeholder="paste a YouTube URL…" spellcheck="false">
-      <button class="btn-sm" id="yt-btn">Load</button>
-    </div>
-    <div class="yt-note">
-      YouTube audio loads via a CORS proxy — works for most videos.<br>
-      If it fails, try a direct file upload instead.
-    </div>
-  </div>
-</div>
-
-<!-- ─── TAP BPM OVERLAY ─── -->
-<div id="tap-overlay">
-  <div class="tap-title">Tap to detect BPM</div>
-  <div id="tap-btn">
-    <div id="tap-bpm-display">—</div>
-    <div id="tap-bpm-sub">tap the beat</div>
-  </div>
-  <div class="tap-actions">
-    <button class="btn-sm" id="tap-reset">Reset</button>
-    <button class="btn-sm" id="tap-confirm">Confirm</button>
-    <button class="btn-sm" id="tap-cancel">Cancel</button>
-  </div>
-</div>
-
-<!-- ─── KEY OVERRIDE OVERLAY ─── -->
-<div id="key-overlay">
-  <div class="key-title">Select key</div>
-  <div class="key-modes">
-    <button class="key-mode-btn active" id="mode-major">Major</button>
-    <button class="key-mode-btn" id="mode-minor">Minor</button>
-  </div>
-  <div class="key-grid" id="key-grid"></div>
-  <div class="tap-actions">
-    <button class="btn-sm" id="key-auto">Auto detect</button>
-    <button class="btn-sm" id="key-cancel">Cancel</button>
   </div>
 </div>
 
@@ -315,7 +257,6 @@ input[type=file]{display:none;}
     </div>
   </div>
 
-  <!-- Mode switcher -->
   <div id="mode-bar">
     <button class="mode-btn active" data-mode="orbital">Orbital</button>
     <button class="mode-btn" data-mode="waveform">Waveform</button>
@@ -334,7 +275,7 @@ input[type=file]{display:none;}
         <div id="track-sub">now playing</div>
       </div>
       <div id="controls">
-        <button class="icon-btn" id="btn-play" title="Play/Pause">
+        <button class="icon-btn" id="btn-play">
           <svg viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
         </button>
         <input type="range" id="vol-slider" min="0" max="1" step="0.01" value="0.8">
@@ -348,56 +289,116 @@ input[type=file]{display:none;}
 </div>
 
 <div id="notif"></div>
-
 <input type="file" id="file-input-hidden" accept="audio/*" style="display:none">
 <audio id="audio" crossorigin="anonymous"></audio>
 
 <script>
-// ════════════════════════════════════════════════════════
-// Synesthétique — Full Music Visualizer
-//  Modes: orbital · waveform · spectrum · kaleidoscope · tunnel · particles
-// ════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════
+//  Synesthétique — Music Visualizer
+//  Modes: orbital · waveform · tunnel · particles
+// ══════════════════════════════════════════════
 
 const $ = id => document.getElementById(id);
 const canvas = $('canvas'), ctx = canvas.getContext('2d');
 const freqCanvas = $('freq-canvas'), fCtx = freqCanvas.getContext('2d');
+const landingCanvas = $('landing-canvas'), lCtx = landingCanvas.getContext('2d');
 const audio = $('audio');
 
 // ── Resize ──
 function resize(){
-  canvas.width = freqCanvas.width = innerWidth;
+  canvas.width = freqCanvas.width = landingCanvas.width = innerWidth;
   canvas.height = innerHeight;
   freqCanvas.height = 100;
+  landingCanvas.height = innerHeight;
 }
 resize(); window.addEventListener('resize', resize);
 
 // ── State ──
 let audioCtx, analyser, gainNode, srcNode;
 let freqData, waveData;
-let playing = false, frame = 0;
+let playing = false, frame = 0, landingFrame = 0;
 let visualMode = 'orbital';
 let colorHue = 200, targetHue = 200;
-let bpmSmooth = 120, detectedBpm = 120, manualBpm = null;
-let dominantNote = 'C', manualKey = null, keyMode = 'Major';
+let bpmSmooth = 120, detectedBpm = 120;
+let dominantNote = 'C';
 let moodLabel = 'ambient';
 let energyHistory = [], beatHistory = [], lastKick = 0;
 let particles = [], rings = [];
 let bgHue = 200;
+let onLanding = true;
 
-// ── Note / Color maps ──
+// ── Maps ──
 const NOTES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
 const NOTE_HUE = {C:0,'C#':30,D:60,'D#':90,E:120,F:150,'F#':180,G:210,'G#':240,A:270,'A#':300,B:330};
 const MOODS = [
-  {label:'euphoric', minBpm:150, minE:.45, hue:285},
-  {label:'energetic',minBpm:130, minE:.38, hue:20},
-  {label:'driving',  minBpm:110, minE:.30, hue:200},
-  {label:'groovy',   minBpm:90,  minE:.22, hue:140},
-  {label:'melancholic',maxBpm:80,maxE:.2,  hue:225},
-  {label:'dreamy',   maxBpm:95,  maxE:.28, hue:265},
-  {label:'ambient',  minBpm:0,   minE:0,   hue:180},
+  {label:'euphoric',  minBpm:150, minE:.45, hue:285},
+  {label:'energetic', minBpm:130, minE:.38, hue:20},
+  {label:'driving',   minBpm:110, minE:.30, hue:200},
+  {label:'groovy',    minBpm:90,  minE:.22, hue:140},
+  {label:'melancholic',maxBpm:80, maxE:.2,  hue:225},
+  {label:'dreamy',    maxBpm:95,  maxE:.28, hue:265},
+  {label:'ambient',   minBpm:0,   minE:0,   hue:180},
 ];
 
-// ── Audio setup ──
+// ══════════════════════════════════════════════
+//  LANDING ANIMATION — slow breathing orbs
+// ══════════════════════════════════════════════
+const orbs = Array.from({length:6}, (_,i) => ({
+  x: 0.15 + Math.random() * 0.7,
+  y: 0.15 + Math.random() * 0.7,
+  r: 0.18 + Math.random() * 0.22,
+  hue: [200, 240, 260, 180, 220, 210][i],
+  speed: 0.0003 + Math.random() * 0.0003,
+  phase: Math.random() * Math.PI * 2,
+  drift: { x: (Math.random()-.5)*0.00015, y: (Math.random()-.5)*0.00015 },
+}));
+
+function drawLanding(t){
+  const W = landingCanvas.width, H = landingCanvas.height;
+  lCtx.clearRect(0,0,W,H);
+
+  // deep base
+  lCtx.fillStyle = '#060608';
+  lCtx.fillRect(0,0,W,H);
+
+  // orbs
+  orbs.forEach(o => {
+    o.x += o.drift.x; o.y += o.drift.y;
+    if(o.x < 0.05 || o.x > 0.95) o.drift.x *= -1;
+    if(o.y < 0.05 || o.y > 0.95) o.drift.y *= -1;
+    const pulse = Math.sin(t * o.speed * 1000 + o.phase) * 0.12 + 0.88;
+    const cx = o.x * W, cy = o.y * H;
+    const r = o.r * Math.min(W, H) * pulse;
+    const g = lCtx.createRadialGradient(cx, cy, 0, cx, cy, r);
+    g.addColorStop(0,   `hsla(${o.hue}, 55%, 35%, 0.14)`);
+    g.addColorStop(0.5, `hsla(${o.hue}, 50%, 25%, 0.06)`);
+    g.addColorStop(1,   `hsla(${o.hue}, 45%, 20%, 0)`);
+    lCtx.fillStyle = g;
+    lCtx.fillRect(0,0,W,H);
+  });
+
+  // very faint grain-like noise overlay for texture
+  lCtx.save();
+  lCtx.globalAlpha = 0.018;
+  for(let i=0;i<300;i++){
+    const x=Math.random()*W, y=Math.random()*H;
+    lCtx.fillStyle = `rgba(255,255,255,${Math.random()})`;
+    lCtx.fillRect(x,y,1,1);
+  }
+  lCtx.restore();
+}
+
+function landingLoop(){
+  if(!onLanding) return;
+  landingFrame++;
+  drawLanding(performance.now());
+  requestAnimationFrame(landingLoop);
+}
+landingLoop();
+
+// ══════════════════════════════════════════════
+//  AUDIO
+// ══════════════════════════════════════════════
 function setupAudio(src){
   if(!audioCtx){
     audioCtx = new (window.AudioContext||window.webkitAudioContext)();
@@ -416,6 +417,7 @@ function setupAudio(src){
   if(audioCtx.state==='suspended') audioCtx.resume();
   audio.src = src; audio.play();
   playing = true;
+  onLanding = false;
   $('hud').classList.add('visible');
   $('landing').classList.add('gone');
   particles = []; rings = [];
@@ -427,75 +429,21 @@ function loadFile(file){
   $('track-name').textContent = file.name.replace(/\.[^.]+$/,'');
 }
 
-// ── YouTube proxy loading ──
-// We use a public invidious/piped instance to extract audio
-async function loadYouTube(url){
-  notify('Fetching YouTube audio…');
-  const id = extractYTId(url);
-  if(!id){ notify('Invalid YouTube URL'); return; }
-
-  // Try multiple proxy approaches
-  const proxies = [
-    `https://inv.nadeko.net/api/v1/videos/${id}`,
-    `https://invidious.slippery.city/api/v1/videos/${id}`,
-    `https://yewtu.be/api/v1/videos/${id}`,
-  ];
-
-  let audioUrl = null;
-  for(const proxy of proxies){
-    try{
-      const r = await fetch(proxy);
-      if(!r.ok) continue;
-      const data = await r.json();
-      // Find best audio format
-      const fmts = (data.adaptiveFormats||[]).filter(f=>f.type&&f.type.startsWith('audio'));
-      fmts.sort((a,b)=>(b.bitrate||0)-(a.bitrate||0));
-      if(fmts.length){ audioUrl = fmts[0].url; break; }
-    }catch(e){ continue; }
-  }
-
-  if(!audioUrl){
-    notify('Could not fetch audio — try uploading the file directly');
-    return;
-  }
-
-  // Try loading directly (CORS may block)
-  try{
-    setupAudio(audioUrl);
-    $('track-name').textContent = `YouTube: ${id}`;
-    notify('YouTube audio loaded!');
-  }catch(e){
-    notify('CORS blocked — upload file directly instead');
-  }
-}
-
-function extractYTId(url){
-  const patterns = [
-    /(?:youtu\.be\/)([a-zA-Z0-9_-]{11})/,
-    /(?:v=)([a-zA-Z0-9_-]{11})/,
-    /(?:embed\/)([a-zA-Z0-9_-]{11})/,
-  ];
-  for(const p of patterns){ const m = url.match(p); if(m) return m[1]; }
-  return null;
-}
-
-// ── Analysis helpers ──
+// ══════════════════════════════════════════════
+//  ANALYSIS
+// ══════════════════════════════════════════════
 function getBands(){
   if(!analyser) return {sub:0,bass:0,mid:0,presence:0,high:0,overall:0};
   analyser.getByteFrequencyData(freqData);
   analyser.getByteTimeDomainData(waveData);
-  const sr = audioCtx.sampleRate, fft = analyser.fftSize;
-  const bin = sr/fft;
+  const bin = audioCtx.sampleRate / analyser.fftSize;
   function avg(lo,hi){
     const a=Math.round(lo/bin), b=Math.min(Math.round(hi/bin),freqData.length-1);
     if(b<=a) return 0;
     let s=0; for(let i=a;i<=b;i++) s+=freqData[i];
     return s/((b-a+1)*255);
   }
-  return {
-    sub:avg(20,60),bass:avg(60,250),mid:avg(250,2000),
-    presence:avg(2000,6000),high:avg(6000,20000),overall:avg(20,20000)
-  };
+  return {sub:avg(20,60),bass:avg(60,250),mid:avg(250,2000),presence:avg(2000,6000),high:avg(6000,20000),overall:avg(20,20000)};
 }
 
 function detectBeat(bands){
@@ -506,22 +454,19 @@ function detectBeat(bands){
   const avg = energyHistory.reduce((a,b)=>a+b,0)/energyHistory.length;
   const variance = energyHistory.reduce((a,b)=>a+(b-avg)**2,0)/energyHistory.length;
   const C = 1.35+variance*180;
-  if(e>C*avg && now-lastKick>230){
+  if(e > C*avg && now-lastKick > 230){
     const delta = now-lastKick;
     if(delta>200&&delta<2000){
       beatHistory.push(delta);
       if(beatHistory.length>8) beatHistory.shift();
       if(beatHistory.length>=4){
-        const avg2 = beatHistory.reduce((a,b)=>a+b,0)/beatHistory.length;
-        let bpm = Math.round(60000/avg2);
+        let bpm = Math.round(60000/(beatHistory.reduce((a,b)=>a+b,0)/beatHistory.length));
         if(bpm>200) bpm=Math.round(bpm/2);
-        if(bpm<60) bpm=bpm*2;
-        detectedBpm = bpm;
+        if(bpm<60)  bpm=bpm*2;
         bpmSmooth += (bpm-bpmSmooth)*.1;
       }
     }
-    lastKick = now;
-    return true;
+    lastKick=now; return true;
   }
   return false;
 }
@@ -532,34 +477,32 @@ function detectNote(){
   const lo=Math.round(80/bin), hi=Math.min(Math.round(1000/bin),freqData.length-1);
   let max=0,idx=lo;
   for(let i=lo;i<=hi;i++) if(freqData[i]>max){max=freqData[i];idx=i;}
-  const freq=idx*bin;
-  if(freq<20) return 'C';
-  const midi = Math.round(12*Math.log2(freq/440)+69);
+  const midi = Math.round(12*Math.log2((idx*bin)/440)+69);
   return NOTES[((midi%12)+12)%12];
 }
 
 function classifyMood(bands,bpm){
   for(const m of MOODS){
-    const okBpmMin = m.minBpm===undefined||bpm>=m.minBpm;
-    const okBpmMax = m.maxBpm===undefined||bpm<=m.maxBpm;
-    const okEMin   = m.minE===undefined||bands.overall>=m.minE;
-    const okEMax   = m.maxE===undefined||bands.overall<=m.maxE;
+    const okBpmMin=m.minBpm===undefined||bpm>=m.minBpm;
+    const okBpmMax=m.maxBpm===undefined||bpm<=m.maxBpm;
+    const okEMin=m.minE===undefined||bands.overall>=m.minE;
+    const okEMax=m.maxE===undefined||bands.overall<=m.maxE;
     if(okBpmMin&&okBpmMax&&okEMin&&okEMax) return m;
   }
   return MOODS[MOODS.length-1];
 }
 
-// ── Particle class ──
+// ══════════════════════════════════════════════
+//  PARTICLES & RINGS
+// ══════════════════════════════════════════════
 class Particle{
   constructor(x,y,hue,spd,sz,life){
     this.x=x;this.y=y;
-    this.vx=(Math.random()-.5)*spd;
-    this.vy=(Math.random()-.5)*spd-Math.random()*spd*.5;
-    this.hue=hue;this.sz=sz;
-    this.life=life;this.maxLife=life;
+    this.vx=(Math.random()-.5)*spd; this.vy=(Math.random()-.5)*spd-Math.random()*spd*.5;
+    this.hue=hue;this.sz=sz;this.life=life;this.maxLife=life;
     this.sat=55+Math.random()*35;
   }
-  update(){ this.x+=this.vx;this.y+=this.vy;this.vy+=.025;this.vx*=.98;this.life--;this.sz*=.993; }
+  update(){this.x+=this.vx;this.y+=this.vy;this.vy+=.025;this.vx*=.98;this.life--;this.sz*=.993;}
   draw(){
     const a=this.life/this.maxLife;
     ctx.save();ctx.globalAlpha=a*.85;
@@ -570,48 +513,62 @@ class Particle{
   }
 }
 
-// ── Ring pulse ──
 class Ring{
-  constructor(x,y,hue,speed){
+  constructor(x,y,hue){
     this.x=x;this.y=y;this.r=0;
     this.maxR=Math.min(canvas.width,canvas.height)*.5;
-    this.hue=hue;this.alpha=.7;this.dead=false;
-    this.speed=speed||8;
+    this.hue=hue;this.alpha=.65;this.dead=false;this.speed=7+Math.random()*4;
   }
-  update(){ this.r+=this.speed;this.alpha=.7*(1-this.r/this.maxR);if(this.r>=this.maxR)this.dead=true; }
+  update(){this.r+=this.speed;this.alpha=.65*(1-this.r/this.maxR);if(this.r>=this.maxR)this.dead=true;}
   draw(){
     ctx.save();ctx.globalAlpha=Math.max(0,this.alpha);
-    ctx.strokeStyle=`hsl(${this.hue},75%,65%)`;ctx.lineWidth=1.5;
-    ctx.shadowBlur=20;ctx.shadowColor=`hsl(${this.hue},90%,70%)`;
+    ctx.strokeStyle=`hsl(${this.hue},72%,65%)`;ctx.lineWidth=1.5;
+    ctx.shadowBlur=18;ctx.shadowColor=`hsl(${this.hue},90%,70%)`;
     ctx.beginPath();ctx.arc(this.x,this.y,this.r,0,Math.PI*2);ctx.stroke();
     ctx.restore();
   }
 }
 
-// ════════════════════════════════
-//  VISUAL MODES
-// ════════════════════════════════
-
+// ══════════════════════════════════════════════
+//  DRAW — BACKGROUND
+// ══════════════════════════════════════════════
 function drawBackground(bands){
-  bgHue+=(targetHue-bgHue)*.004;
-  const W=canvas.width,H=canvas.height;
-  const g=ctx.createRadialGradient(W/2,H/2,0,W/2,H/2,Math.max(W,H)*.85);
-  g.addColorStop(0,`hsl(${bgHue},22%,${4+bands.overall*7}%)`);
-  g.addColorStop(1,`hsl(${bgHue+15},12%,2%)`);
-  ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+  bgHue += (targetHue-bgHue)*.004;
+  const W=canvas.width, H=canvas.height;
+
+  // base fill
+  ctx.fillStyle='#060608';
+  ctx.fillRect(0,0,W,H);
+
+  // mood color bloom from center
+  const bloom = ctx.createRadialGradient(W/2,H/2,0,W/2,H/2,Math.max(W,H)*.7);
+  bloom.addColorStop(0,   `hsla(${bgHue},40%,18%,${0.28+bands.overall*.2})`);
+  bloom.addColorStop(0.5, `hsla(${bgHue+15},30%,10%,${0.15+bands.overall*.1})`);
+  bloom.addColorStop(1,   `hsla(${bgHue+25},20%,5%,0)`);
+  ctx.fillStyle=bloom; ctx.fillRect(0,0,W,H);
+
+  // subtle secondary bloom offset
+  const bloom2 = ctx.createRadialGradient(W*.65,H*.35,0,W*.65,H*.35,Math.max(W,H)*.45);
+  bloom2.addColorStop(0,  `hsla(${bgHue+60},35%,15%,${0.1+bands.bass*.08})`);
+  bloom2.addColorStop(1,  `hsla(${bgHue+60},25%,8%,0)`);
+  ctx.fillStyle=bloom2; ctx.fillRect(0,0,W,H);
 }
 
-// ── 1. ORBITAL ──
+// ══════════════════════════════════════════════
+//  DRAW — VISUAL MODES
+// ══════════════════════════════════════════════
+
+// ── Orbital ──
 function drawOrbital(bands,isBeat){
   const W=canvas.width,H=canvas.height,cx=W/2,cy=H/2,t=frame/60;
   const baseR=Math.min(W,H)*.26+bands.bass*70;
   const spikes=Math.round(5+bands.mid*10);
-
-  [[.28,spikes,t*.5,.55,2],[.16,spikes*2,-t*.75,.32,1.5],[.09,spikes*3,t*1.1,.18,1]].forEach(([amp,freq,phase,op,lw],li)=>{
-    const pts=360; ctx.save();
+  [[.28,spikes,t*.5,.55,2],[.16,spikes*2,-t*.75,.30,1.5],[.09,spikes*3,t*1.1,.16,1]].forEach(([amp,freq,phase,op,lw],li)=>{
+    const pts=360;
+    ctx.save();
     ctx.globalAlpha=op*(0.3+bands.overall*.7);
-    ctx.strokeStyle=`hsl(${colorHue+li*30},72%,65%)`;
-    ctx.lineWidth=lw;ctx.shadowBlur=14;ctx.shadowColor=`hsl(${colorHue+li*30},90%,70%)`;
+    ctx.strokeStyle=`hsl(${colorHue+li*28},72%,65%)`;
+    ctx.lineWidth=lw;ctx.shadowBlur=14;ctx.shadowColor=`hsl(${colorHue+li*28},90%,70%)`;
     ctx.beginPath();
     for(let i=0;i<=pts;i++){
       const a=(i/pts)*Math.PI*2;
@@ -622,7 +579,6 @@ function drawOrbital(bands,isBeat){
     }
     ctx.closePath();ctx.stroke();ctx.restore();
   });
-
   const gr=40+bands.bass*90+(isBeat?50:0);
   const grd=ctx.createRadialGradient(cx,cy,0,cx,cy,gr);
   grd.addColorStop(0,`hsla(${colorHue},80%,85%,.5)`);
@@ -630,12 +586,11 @@ function drawOrbital(bands,isBeat){
   ctx.save();ctx.fillStyle=grd;ctx.beginPath();ctx.arc(cx,cy,gr,0,Math.PI*2);ctx.fill();ctx.restore();
 }
 
-// ── 2. WAVEFORM ──
+// ── Waveform ──
 function drawWaveform(bands){
   const W=canvas.width,H=canvas.height,t=frame/60;
   if(!waveData) return;
-  const layers=3;
-  for(let l=0;l<layers;l++){
+  for(let l=0;l<3;l++){
     const offset=H*.5+((l-1)*H*.08);
     const amp=(H*.25)*(1+bands.bass*.8)*(1-l*.2);
     const hue=colorHue+l*25;
@@ -654,266 +609,140 @@ function drawWaveform(bands){
     }
     ctx.stroke();ctx.restore();
   }
-
-  // center mirror
-  ctx.save();
-  ctx.globalAlpha=.2;
-  ctx.strokeStyle=`hsl(${colorHue},50%,50%)`;
-  ctx.lineWidth=.5;
-  ctx.setLineDash([4,8]);
+  ctx.save();ctx.globalAlpha=.12;ctx.strokeStyle=`hsl(${colorHue},50%,50%)`;
+  ctx.lineWidth=.5;ctx.setLineDash([4,10]);
   ctx.beginPath();ctx.moveTo(0,H/2);ctx.lineTo(W,H/2);ctx.stroke();
-  ctx.setLineDash([]);
-  ctx.restore();
+  ctx.setLineDash([]);ctx.restore();
 }
 
-// ── 3. SPECTRUM BARS ──
-function drawSpectrum(bands){
-  const W=canvas.width,H=canvas.height;
-  const count=120, barW=W/count*.7, gap=W/count*.3;
-  const cx=W/2,cy=H/2;
-
-  for(let i=0;i<count;i++){
-    const idx=Math.floor(i/count*freqData.length*.65);
-    const val=freqData?freqData[idx]/255:0;
-    const barH=val*H*.42;
-    const hue=colorHue+(i/count)*80;
-    const x=i*(barW+gap)+(W-(count*(barW+gap)))/2;
-
-    // Mirrored bars
-    ctx.save();
-    ctx.fillStyle=`hsl(${hue},72%,60%)`;
-    ctx.shadowBlur=barH*.2;ctx.shadowColor=`hsl(${hue},90%,70%)`;
-    ctx.globalAlpha=0.8;
-    // top
-    ctx.fillRect(x,cy-barH,barW,barH);
-    // bottom mirror
-    ctx.globalAlpha=0.35;
-    ctx.fillRect(x,cy,barW,barH);
-    ctx.restore();
-
-    // top cap
-    if(val>.05){
-      ctx.save();
-      ctx.globalAlpha=.9;
-      ctx.fillStyle=`hsl(${hue},90%,80%)`;
-      ctx.fillRect(x,cy-barH-2,barW,2);
-      ctx.restore();
-    }
-  }
-}
-
-// ── 4. KALEIDOSCOPE ──
-function drawKaleidoscope(bands,isBeat){
-  const W=canvas.width,H=canvas.height,cx=W/2,cy=H/2,t=frame/60;
-  const segments=8;
-  const sliceAngle=(Math.PI*2)/segments;
-  const r=Math.min(W,H)*.5;
-
-  ctx.save();
-  ctx.beginPath();
-  ctx.arc(cx,cy,r,0,Math.PI*2);
-  ctx.clip();
-
-  for(let s=0;s<segments;s++){
-    ctx.save();
-    ctx.translate(cx,cy);
-    ctx.rotate(s*sliceAngle);
-    if(s%2===0) ctx.scale(1,-1);
-
-    // draw layered arcs driven by freq
-    const bars=40;
-    for(let i=0;i<bars;i++){
-      const idx=Math.floor(i/bars*freqData.length*.4);
-      const val=freqData?freqData[idx]/255:0;
-      const ri=(i/bars)*r*.9;
-      const arc=sliceAngle*(0.5+val*.6);
-      const hue=colorHue+(i/bars)*120+t*10;
-
-      ctx.save();
-      ctx.globalAlpha=val*.6;
-      ctx.strokeStyle=`hsl(${hue},75%,65%)`;
-      ctx.lineWidth=r/bars*.8;
-      ctx.shadowBlur=8;ctx.shadowColor=`hsl(${hue},90%,70%)`;
-      ctx.beginPath();
-      ctx.arc(0,0,ri,-sliceAngle/2,-sliceAngle/2+arc);
-      ctx.stroke();
-      ctx.restore();
-    }
-    ctx.restore();
-  }
-  ctx.restore();
-
-  // center dot
-  const gr=15+bands.bass*40;
-  const grd=ctx.createRadialGradient(cx,cy,0,cx,cy,gr);
-  grd.addColorStop(0,`hsla(${colorHue},90%,90%,.8)`);
-  grd.addColorStop(1,`hsla(${colorHue},80%,60%,0)`);
-  ctx.save();ctx.fillStyle=grd;ctx.beginPath();ctx.arc(cx,cy,gr,0,Math.PI*2);ctx.fill();ctx.restore();
-}
-
-// ── 5. TUNNEL ──
+// ── Tunnel ──
 let tunnelDepth=0;
 function drawTunnel(bands,isBeat){
   const W=canvas.width,H=canvas.height,cx=W/2,cy=H/2,t=frame/60;
   tunnelDepth+=.015*(1+bands.bass);
-  const layers=20;
-
-  for(let i=layers;i>=0;i--){
-    const phase=(i/layers+tunnelDepth)%1;
+  for(let i=20;i>=0;i--){
+    const phase=(i/20+tunnelDepth)%1;
     const sz=phase*Math.min(W,H)*.7;
     const alpha=(1-phase)*.6*(bands.overall*.5+.5);
     const hue=colorHue+(phase*60)+t*5;
     const sides=Math.round(4+bands.mid*6);
     const twist=phase*Math.PI*.5+t*.3;
     const warp=1+Math.sin(t*2+i)*bands.bass*.3;
-
-    ctx.save();
-    ctx.globalAlpha=alpha;
-    ctx.strokeStyle=`hsl(${hue},72%,65%)`;
-    ctx.lineWidth=1.5;
+    ctx.save();ctx.globalAlpha=alpha;
+    ctx.strokeStyle=`hsl(${hue},72%,65%)`;ctx.lineWidth=1.5;
     ctx.shadowBlur=20;ctx.shadowColor=`hsl(${hue},90%,70%)`;
     ctx.beginPath();
     for(let j=0;j<=sides;j++){
       const a=(j/sides)*Math.PI*2+twist;
-      const px=cx+Math.cos(a)*sz*.5*warp;
-      const py=cy+Math.sin(a)*sz*.5/warp;
-      j===0?ctx.moveTo(px,py):ctx.lineTo(px,py);
+      j===0?ctx.moveTo(cx+Math.cos(a)*sz*.5*warp,cy+Math.sin(a)*sz*.5/warp)
+           :ctx.lineTo(cx+Math.cos(a)*sz*.5*warp,cy+Math.sin(a)*sz*.5/warp);
     }
     ctx.closePath();ctx.stroke();ctx.restore();
   }
 }
 
-// ── 6. PARTICLE FIELD ──
+// ── Particle Field ──
 let fieldParticles=[];
 function initFieldParticles(){
-  fieldParticles=[];
-  for(let i=0;i<150;i++){
-    fieldParticles.push({
-      x:Math.random()*canvas.width,y:Math.random()*canvas.height,
-      vx:(Math.random()-.5)*.5,vy:(Math.random()-.5)*.5,
-      size:Math.random()*2+.5,hue:Math.random()*360,alpha:Math.random()*.5+.2
-    });
-  }
+  fieldParticles=Array.from({length:150},()=>({
+    x:Math.random()*canvas.width, y:Math.random()*canvas.height,
+    vx:(Math.random()-.5)*.5, vy:(Math.random()-.5)*.5,
+    size:Math.random()*2+.5, hue:Math.random()*360, alpha:Math.random()*.5+.2
+  }));
 }
-function drawParticleField(bands,isBeat){
+function drawParticleField(bands){
   const W=canvas.width,H=canvas.height,t=frame/60;
   fieldParticles.forEach(p=>{
-    // Flow field based on freq
-    const gx=Math.floor(p.x/W*8),gy=Math.floor(p.y/H*8);
-    const bi=Math.min(gx*8+gy,freqData?freqData.length-1:0);
+    const bi=Math.min(Math.floor(p.x/W*8)*8+Math.floor(p.y/H*8),freqData?freqData.length-1:0);
     const force=(freqData?freqData[bi]/255:0)*.5;
     const angle=Math.sin(p.x*.005+t)+Math.cos(p.y*.005+t);
-    p.vx+=Math.cos(angle)*force*.3;
-    p.vy+=Math.sin(angle)*force*.3+bands.bass*.05;
-    p.vx*=.97;p.vy*=.97;
-    p.x+=p.vx;p.y+=p.vy;
-    if(p.x<0)p.x=W;if(p.x>W)p.x=0;
-    if(p.y<0)p.y=H;if(p.y>H)p.y=0;
+    p.vx+=Math.cos(angle)*force*.3; p.vy+=Math.sin(angle)*force*.3+bands.bass*.05;
+    p.vx*=.97; p.vy*=.97;
+    p.x+=p.vx; p.y+=p.vy;
+    if(p.x<0)p.x=W; if(p.x>W)p.x=0; if(p.y<0)p.y=H; if(p.y>H)p.y=0;
     p.hue=(colorHue+(p.x/W)*60)%360;
-
-    ctx.save();
-    ctx.globalAlpha=p.alpha*(0.4+bands.overall*.6);
+    ctx.save();ctx.globalAlpha=p.alpha*(0.4+bands.overall*.6);
     ctx.fillStyle=`hsl(${p.hue},70%,70%)`;
     ctx.shadowBlur=p.size*3;ctx.shadowColor=`hsl(${p.hue},90%,70%)`;
     ctx.beginPath();ctx.arc(p.x,p.y,p.size*(1+bands.bass*.5),0,Math.PI*2);ctx.fill();
     ctx.restore();
   });
-
-  // Connect nearby particles
   ctx.save();ctx.lineWidth=.3;
   for(let i=0;i<fieldParticles.length;i+=3){
     for(let j=i+1;j<fieldParticles.length;j+=3){
-      const dx=fieldParticles[i].x-fieldParticles[j].x;
-      const dy=fieldParticles[i].y-fieldParticles[j].y;
+      const dx=fieldParticles[i].x-fieldParticles[j].x, dy=fieldParticles[i].y-fieldParticles[j].y;
       const d=Math.sqrt(dx*dx+dy*dy);
       if(d<80){
         ctx.globalAlpha=(.8-d/80)*.12*bands.overall;
         ctx.strokeStyle=`hsl(${colorHue},60%,65%)`;
-        ctx.beginPath();
-        ctx.moveTo(fieldParticles[i].x,fieldParticles[i].y);
-        ctx.lineTo(fieldParticles[j].x,fieldParticles[j].y);
-        ctx.stroke();
+        ctx.beginPath();ctx.moveTo(fieldParticles[i].x,fieldParticles[i].y);
+        ctx.lineTo(fieldParticles[j].x,fieldParticles[j].y);ctx.stroke();
       }
     }
   }
   ctx.restore();
 }
 
-// ── Freq bars (bottom overlay) ──
+// ── Freq bars overlay ──
 function drawFreqOverlay(){
   if(!freqData) return;
   const W=freqCanvas.width,H=freqCanvas.height,count=96,barW=W/count;
   fCtx.clearRect(0,0,W,H);
   for(let i=0;i<count;i++){
-    const idx=Math.floor(i/count*freqData.length*.5);
-    const val=freqData[idx]/255;
+    const val=freqData[Math.floor(i/count*freqData.length*.5)]/255;
     const bh=val*H*.85;
-    const hue=colorHue+(i/count)*50;
-    fCtx.fillStyle=`hsla(${hue},68%,62%,${.25+val*.45})`;
+    fCtx.fillStyle=`hsla(${colorHue+(i/count)*50},68%,62%,${.2+val*.4})`;
     fCtx.fillRect(i*barW,H-bh,barW-1,bh);
   }
 }
 
-// ═════════════════ MAIN LOOP ═════════════════
+// ══════════════════════════════════════════════
+//  MAIN LOOP
+// ══════════════════════════════════════════════
 function loop(){
   requestAnimationFrame(loop);
   frame++;
+
+  if(onLanding){ ctx.clearRect(0,0,canvas.width,canvas.height); return; }
+
   const bands=getBands();
   const isBeat=detectBeat(bands);
-
-  // Note + mood + color
-  if(!manualKey) dominantNote=detectNote();
-  const note=manualKey||dominantNote;
-  const mood=classifyMood(bands,manualBpm||bpmSmooth);
+  dominantNote=detectNote();
+  const mood=classifyMood(bands,bpmSmooth);
   moodLabel=mood.label;
-  targetHue=(mood.hue*.55+(NOTE_HUE[note]||0)*.45);
+  targetHue=(mood.hue*.55+(NOTE_HUE[dominantNote]||0)*.45);
   colorHue+=(targetHue-colorHue)*.018;
 
-  // Background
   drawBackground(bands);
 
-  // Beat events
   if(isBeat && playing){
     $('beat-ring').style.opacity='1';
-    $('beat-ring').style.boxShadow=`inset 0 0 150px hsla(${colorHue},80%,70%,.07)`;
+    $('beat-ring').style.boxShadow=`inset 0 0 160px hsla(${colorHue},80%,70%,.065)`;
     setTimeout(()=>{ $('beat-ring').style.opacity='0'; },90);
     rings.push(new Ring(canvas.width/2,canvas.height/2,colorHue));
-    const n=Math.floor(6+bands.bass*18);
-    for(let i=0;i<n;i++){
+    for(let i=0;i<Math.floor(6+bands.bass*18);i++){
       const a=Math.random()*Math.PI*2, d=Math.random()*180;
-      particles.push(new Particle(
-        canvas.width/2+Math.cos(a)*d, canvas.height/2+Math.sin(a)*d,
-        colorHue+(Math.random()-.5)*50, 3+bands.bass*7, 1+Math.random()*3, 45+Math.random()*55
-      ));
+      particles.push(new Particle(canvas.width/2+Math.cos(a)*d,canvas.height/2+Math.sin(a)*d,colorHue+(Math.random()-.5)*50,3+bands.bass*7,1+Math.random()*3,45+Math.random()*55));
     }
   }
-
-  // Ambient particles
   if(playing && Math.random()<bands.high*.25+.015 && particles.length<400){
-    particles.push(new Particle(
-      Math.random()*canvas.width, canvas.height+5,
-      colorHue+(Math.random()-.5)*40, 1.5+Math.random()*2, .5+Math.random()*1.5, 90+Math.random()*120
-    ));
+    particles.push(new Particle(Math.random()*canvas.width,canvas.height+5,colorHue+(Math.random()-.5)*40,1.5+Math.random()*2,.5+Math.random()*1.5,90+Math.random()*120));
   }
 
-  // Mode draw
-  if(playing){
-    switch(visualMode){
-      case 'orbital':       drawOrbital(bands,isBeat); break;
-      case 'waveform':      drawWaveform(bands); break;
-      case 'tunnel':        drawTunnel(bands,isBeat); break;
-      case 'particles':     drawParticleField(bands,isBeat); break;
-    }
+  switch(visualMode){
+    case 'orbital':   drawOrbital(bands,isBeat); break;
+    case 'waveform':  drawWaveform(bands); break;
+    case 'tunnel':    drawTunnel(bands,isBeat); break;
+    case 'particles': drawParticleField(bands); break;
   }
 
   rings.forEach(r=>{r.update();r.draw();}); rings=rings.filter(r=>!r.dead);
   particles.forEach(p=>{p.update();p.draw();}); particles=particles.filter(p=>p.life>0);
   drawFreqOverlay();
 
-  // HUD updates
   if(playing){
-    $('bpm-val').textContent=Math.round(manualBpm||bpmSmooth)||'—';
-    $('key-val').textContent=(manualKey||dominantNote)+(keyMode==='Minor'?' m':'');
+    $('bpm-val').textContent=Math.round(bpmSmooth)||'—';
+    $('key-val').textContent=dominantNote;
     $('energy-val').textContent=Math.round(bands.overall*100)+'%';
     $('mood-pill').textContent=moodLabel;
     if(audio.duration) $('progress-fill').style.width=(audio.currentTime/audio.duration*100)+'%';
@@ -922,46 +751,35 @@ function loop(){
 loop();
 initFieldParticles();
 
-// ═════════════════ UI EVENTS ═════════════════
+// ══════════════════════════════════════════════
+//  UI EVENTS
+// ══════════════════════════════════════════════
 
-// Landing inputs
+// Drop / file
 $('dropbox').addEventListener('click',()=>$('file-input').click());
-$('file-input').addEventListener('change',e=>{if(e.target.files[0])loadFile(e.target.files[0]);});
+$('file-input').addEventListener('change',e=>{if(e.target.files[0]){loadFile(e.target.files[0]);e.target.value='';}});
 $('dropbox').addEventListener('dragover',e=>{e.preventDefault();$('dropbox').classList.add('drag-over');});
 $('dropbox').addEventListener('dragleave',()=>$('dropbox').classList.remove('drag-over'));
 $('dropbox').addEventListener('drop',e=>{
   e.preventDefault();$('dropbox').classList.remove('drag-over');
-  if(e.dataTransfer.files[0])loadFile(e.dataTransfer.files[0]);
+  if(e.dataTransfer.files[0]) loadFile(e.dataTransfer.files[0]);
 });
 document.addEventListener('dragover',e=>e.preventDefault());
 document.addEventListener('drop',e=>{
   e.preventDefault();
-  if(e.dataTransfer.files[0]&&e.target!==$('dropbox'))loadFile(e.dataTransfer.files[0]);
+  if(e.dataTransfer.files[0]&&e.target!==$('dropbox')) loadFile(e.dataTransfer.files[0]);
 });
-
-$('yt-btn').addEventListener('click',()=>{
-  const url=$('yt-input').value.trim();
-  if(url)loadYouTube(url);
-});
-$('yt-input').addEventListener('keydown',e=>{ if(e.key==='Enter'){const url=e.target.value.trim();if(url)loadYouTube(url);}});
 
 // Play/pause
 $('btn-play').addEventListener('click',()=>{
-  if(!audio.src)return;
-  playing?audio.pause():audio.play();
-  playing=!playing;
+  if(!audio.src) return;
+  playing ? audio.pause() : audio.play();
 });
-audio.addEventListener('play',()=>{
-  playing=true;
-  $('btn-play').innerHTML=`<svg viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>`;
-});
-audio.addEventListener('pause',()=>{
-  playing=false;
-  $('btn-play').innerHTML=`<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>`;
-});
+audio.addEventListener('play',()=>{ playing=true; $('btn-play').innerHTML=`<svg viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>`; });
+audio.addEventListener('pause',()=>{ playing=false; $('btn-play').innerHTML=`<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>`; });
 
 // Volume
-$('vol-slider').addEventListener('input',e=>{ if(gainNode)gainNode.gain.value=+e.target.value; });
+$('vol-slider').addEventListener('input',e=>{ if(gainNode) gainNode.gain.value=+e.target.value; });
 
 // Progress
 $('progress-wrap').addEventListener('click',e=>{
@@ -969,18 +787,17 @@ $('progress-wrap').addEventListener('click',e=>{
   if(audio.duration) audio.currentTime=((e.clientX-r.left)/r.width)*audio.duration;
 });
 
-// New track — open file picker
+// New track
 $('btn-new').addEventListener('click',()=>$('file-input-hidden').click());
-$('file-input-hidden').addEventListener('change',e=>{
-  if(e.target.files[0]){ loadFile(e.target.files[0]); e.target.value=''; }
-});
+$('file-input-hidden').addEventListener('change',e=>{if(e.target.files[0]){loadFile(e.target.files[0]);e.target.value='';}});
 
-// Logo click → back to landing
+// Logo → back to landing
 $('logo-sm-btn').addEventListener('click',()=>{
   audio.pause(); playing=false;
+  onLanding=true;
   $('landing').classList.remove('gone');
   $('hud').classList.remove('visible');
-  $('yt-input').value='';
+  landingLoop();
 });
 
 // Mode switcher
@@ -994,98 +811,26 @@ document.querySelectorAll('.mode-btn').forEach(btn=>{
   });
 });
 
-// ── TAP BPM ──
-let tapTimes=[], tapBpm=0;
-$('btn-tap').addEventListener('click',()=>{ $('tap-overlay').classList.add('open'); tapTimes=[]; $('tap-bpm-display').textContent='—'; });
-$('tap-btn').addEventListener('click',()=>{
-  const now=performance.now();
-  tapTimes.push(now);
-  if(tapTimes.length>1){
-    const deltas=tapTimes.slice(1).map((t,i)=>t-tapTimes[i]);
-    const avg=deltas.reduce((a,b)=>a+b,0)/deltas.length;
-    tapBpm=Math.round(60000/avg);
-    $('tap-bpm-display').textContent=tapBpm;
-  }
-  if(tapTimes.length>8) tapTimes.shift();
-});
-$('tap-reset').addEventListener('click',()=>{ tapTimes=[]; tapBpm=0; $('tap-bpm-display').textContent='—'; });
-$('tap-confirm').addEventListener('click',()=>{
-  if(tapBpm){
-    manualBpm=tapBpm;bpmSmooth=tapBpm;
-    notify(`BPM set to ${tapBpm}`);
-  }
-  $('tap-overlay').classList.remove('open');
-});
-$('tap-cancel').addEventListener('click',()=>$('tap-overlay').classList.remove('open'));
-
-// ── KEY OVERRIDE ──
-let selectedKey=null, selectedKeyMode='Major';
-const NOTES_LIST=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
-const grid=$('key-grid');
-NOTES_LIST.forEach(n=>{
-  const el=document.createElement('div');
-  el.className='key-chip'; el.textContent=n;
-  el.addEventListener('click',()=>{
-    selectedKey=n;
-    document.querySelectorAll('.key-chip').forEach(c=>c.classList.remove('selected'));
-    el.classList.add('selected');
-  });
-  grid.appendChild(el);
-});
-$('btn-key').addEventListener('click',()=>{
-  selectedKey=manualKey;
-  selectedKeyMode=keyMode;
-  document.querySelectorAll('.key-chip').forEach(c=>c.classList.remove('selected'));
-  if(selectedKey){
-    [...document.querySelectorAll('.key-chip')].find(c=>c.textContent===selectedKey)?.classList.add('selected');
-  }
-  updateKeyModeUI();
-  $('key-overlay').classList.add('open');
-});
-$('mode-major').addEventListener('click',()=>{ selectedKeyMode='Major'; updateKeyModeUI(); });
-$('mode-minor').addEventListener('click',()=>{ selectedKeyMode='Minor'; updateKeyModeUI(); });
-function updateKeyModeUI(){
-  $('mode-major').classList.toggle('active',selectedKeyMode==='Major');
-  $('mode-minor').classList.toggle('active',selectedKeyMode==='Minor');
-}
-$('key-overlay').addEventListener('click',e=>{
-  if(e.target===$('key-overlay')||e.target.id==='key-cancel'){
-    if(selectedKey){
-      manualKey=selectedKey; keyMode=selectedKeyMode;
-      notify(`Key set to ${selectedKey} ${selectedKeyMode}`);
-    }
-    $('key-overlay').classList.remove('open');
-  }
-});
-$('key-auto').addEventListener('click',()=>{
-  manualKey=null; selectedKey=null;
-  document.querySelectorAll('.key-chip').forEach(c=>c.classList.remove('selected'));
-  $('key-overlay').classList.remove('open');
-  notify('Key set to auto detect');
-});
-
-// ── Notify ──
-let notifTimer;
-function notify(msg){
-  const el=$('notif');
-  el.textContent=msg;el.classList.add('show');
-  clearTimeout(notifTimer);
-  notifTimer=setTimeout(()=>el.classList.remove('show'),2800);
-}
-
 // Keyboard shortcuts
 document.addEventListener('keydown',e=>{
   if(['INPUT','TEXTAREA'].includes(e.target.tagName)) return;
-  if(e.code==='Space'){ e.preventDefault(); if(audio.src){playing?audio.pause():audio.play();} }
+  if(e.code==='Space'){e.preventDefault();if(audio.src){playing?audio.pause():audio.play();}}
   if(e.key==='m'||e.key==='M'){
     const modes=['orbital','waveform','tunnel','particles'];
-    const i=(modes.indexOf(visualMode)+1)%modes.length;
-    visualMode=modes[i];
-    document.querySelectorAll('.mode-btn').forEach(b=>{b.classList.toggle('active',b.dataset.mode===visualMode);});
-    if(visualMode==='particles') initFieldParticles();
-    notify('Mode: '+visualMode);
+    const next=modes[(modes.indexOf(visualMode)+1)%modes.length];
+    visualMode=next;
+    document.querySelectorAll('.mode-btn').forEach(b=>b.classList.toggle('active',b.dataset.mode===next));
+    if(next==='particles') initFieldParticles();
+    tunnelDepth=0;
   }
 });
+
+// Notify
+let notifTimer;
+function notify(msg){
+  const el=$('notif');el.textContent=msg;el.classList.add('show');
+  clearTimeout(notifTimer);notifTimer=setTimeout(()=>el.classList.remove('show'),2800);
+}
 </script>
 </body>
 </html>
