@@ -96,7 +96,8 @@ input[type=file]{display:none;}
   padding:20px 28px;
   background:linear-gradient(to bottom,rgba(7,7,13,.85) 0%,transparent 100%);
 }
-.logo-sm{font-family:'Cormorant Garamond',serif;font-style:italic;font-size:16px;letter-spacing:.15em;color:var(--accent);opacity:.7;}
+.logo-sm{font-family:'Cormorant Garamond',serif;font-style:italic;font-size:16px;letter-spacing:.15em;color:var(--accent);opacity:.7;cursor:pointer;pointer-events:all;transition:opacity .2s;}
+.logo-sm:hover{opacity:1;}
 
 #stats{display:flex;gap:24px;}
 .stat{display:flex;flex-direction:column;align-items:flex-end;gap:1px;}
@@ -306,7 +307,7 @@ input[type=file]{display:none;}
 <!-- ─── HUD ─── -->
 <div id="hud">
   <div id="topbar">
-    <div class="logo-sm">Synesthétique</div>
+    <div class="logo-sm" id="logo-sm-btn">Synesthétique</div>
     <div id="stats">
       <div class="stat"><div class="stat-val" id="bpm-val">—</div><div class="stat-lbl">BPM</div></div>
       <div class="stat"><div class="stat-val" id="key-val">—</div><div class="stat-lbl">KEY</div></div>
@@ -318,8 +319,6 @@ input[type=file]{display:none;}
   <div id="mode-bar">
     <button class="mode-btn active" data-mode="orbital">Orbital</button>
     <button class="mode-btn" data-mode="waveform">Waveform</button>
-    <button class="mode-btn" data-mode="bars">Spectrum</button>
-    <button class="mode-btn" data-mode="kaleidoscope">Kaleid.</button>
     <button class="mode-btn" data-mode="tunnel">Tunnel</button>
     <button class="mode-btn" data-mode="particles">Particles</button>
   </div>
@@ -342,8 +341,6 @@ input[type=file]{display:none;}
       </div>
       <div class="right-controls">
         <div id="mood-pill">—</div>
-        <button class="ctrl-btn" id="btn-tap">TAP BPM</button>
-        <button class="ctrl-btn" id="btn-key">KEY ▾</button>
         <button class="btn-sm" id="btn-new">+ Track</button>
       </div>
     </div>
@@ -402,30 +399,32 @@ const MOODS = [
 
 // ── Audio setup ──
 function setupAudio(src){
-  if(audioCtx){ try{ audioCtx.close(); }catch(e){} }
-  audioCtx = new (window.AudioContext||window.webkitAudioContext)();
-  analyser = audioCtx.createAnalyser();
-  analyser.fftSize = 2048;
-  analyser.smoothingTimeConstant = 0.8;
-  gainNode = audioCtx.createGain();
-  gainNode.gain.value = +($('vol-slider').value);
-  srcNode = audioCtx.createMediaElementSource(audio);
-  srcNode.connect(analyser);
-  analyser.connect(gainNode);
-  gainNode.connect(audioCtx.destination);
-  freqData = new Uint8Array(analyser.frequencyBinCount);
-  waveData = new Uint8Array(analyser.frequencyBinCount);
+  if(!audioCtx){
+    audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 2048;
+    analyser.smoothingTimeConstant = 0.8;
+    gainNode = audioCtx.createGain();
+    gainNode.gain.value = +($('vol-slider').value);
+    srcNode = audioCtx.createMediaElementSource(audio);
+    srcNode.connect(analyser);
+    analyser.connect(gainNode);
+    gainNode.connect(audioCtx.destination);
+    freqData = new Uint8Array(analyser.frequencyBinCount);
+    waveData = new Uint8Array(analyser.frequencyBinCount);
+  }
+  if(audioCtx.state==='suspended') audioCtx.resume();
   audio.src = src; audio.play();
   playing = true;
   $('hud').classList.add('visible');
   $('landing').classList.add('gone');
   particles = []; rings = [];
+  energyHistory = []; beatHistory = []; lastKick = 0;
 }
 
 function loadFile(file){
   setupAudio(URL.createObjectURL(file));
   $('track-name').textContent = file.name.replace(/\.[^.]+$/,'');
-  notify('Track loaded');
 }
 
 // ── YouTube proxy loading ──
@@ -902,8 +901,6 @@ function loop(){
     switch(visualMode){
       case 'orbital':       drawOrbital(bands,isBeat); break;
       case 'waveform':      drawWaveform(bands); break;
-      case 'bars':          drawSpectrum(bands); break;
-      case 'kaleidoscope':  drawKaleidoscope(bands,isBeat); break;
       case 'tunnel':        drawTunnel(bands,isBeat); break;
       case 'particles':     drawParticleField(bands,isBeat); break;
     }
@@ -972,9 +969,19 @@ $('progress-wrap').addEventListener('click',e=>{
   if(audio.duration) audio.currentTime=((e.clientX-r.left)/r.width)*audio.duration;
 });
 
-// New track
+// New track — open file picker
 $('btn-new').addEventListener('click',()=>$('file-input-hidden').click());
-$('file-input-hidden').addEventListener('change',e=>{if(e.target.files[0])loadFile(e.target.files[0]);});
+$('file-input-hidden').addEventListener('change',e=>{
+  if(e.target.files[0]){ loadFile(e.target.files[0]); e.target.value=''; }
+});
+
+// Logo click → back to landing
+$('logo-sm-btn').addEventListener('click',()=>{
+  audio.pause(); playing=false;
+  $('landing').classList.remove('gone');
+  $('hud').classList.remove('visible');
+  $('yt-input').value='';
+});
 
 // Mode switcher
 document.querySelectorAll('.mode-btn').forEach(btn=>{
@@ -1071,7 +1078,7 @@ document.addEventListener('keydown',e=>{
   if(['INPUT','TEXTAREA'].includes(e.target.tagName)) return;
   if(e.code==='Space'){ e.preventDefault(); if(audio.src){playing?audio.pause():audio.play();} }
   if(e.key==='m'||e.key==='M'){
-    const modes=['orbital','waveform','bars','kaleidoscope','tunnel','particles'];
+    const modes=['orbital','waveform','tunnel','particles'];
     const i=(modes.indexOf(visualMode)+1)%modes.length;
     visualMode=modes[i];
     document.querySelectorAll('.mode-btn').forEach(b=>{b.classList.toggle('active',b.dataset.mode===visualMode);});
