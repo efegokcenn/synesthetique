@@ -113,6 +113,7 @@ input[type=file]{display:none;}
     <button class="mode-btn" data-mode="waveform">Waveform</button>
     <button class="mode-btn" data-mode="tunnel">Tunnel</button>
     <button class="mode-btn" data-mode="particles">Particles</button>
+    <button class="mode-btn" data-mode="bloom">Bloom</button>
   </div>
   <div id="bottombar">
     <div id="progress-wrap"><div id="progress-fill"></div><div id="progress-head"></div></div>
@@ -183,7 +184,7 @@ const MOODS=[
   {label:'melancholic',maxBpm:80,  maxE:.19, hue:210, sat:75},
   {label:'ambient',    minBpm:0,   minE:0,   hue:185, sat:70},
 ];
-const MOOD_TO_MODE={euphoric:'tunnel',energetic:'tunnel',driving:'orbital',groovy:'waveform',dreamy:'particles',melancholic:'waveform',ambient:'particles'};
+const MOOD_TO_MODE={euphoric:'tunnel',energetic:'tunnel',driving:'orbital',groovy:'bloom',dreamy:'particles',melancholic:'waveform',ambient:'particles'};
 const NOTES=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
 const NOTE_HUE={C:0,'C#':30,D:60,'D#':90,E:120,F:150,'F#':180,G:200,'G#':240,A:270,'A#':300,B:340};
 
@@ -430,7 +431,7 @@ function drawOrbital(bands,isBeat,alpha=1){
   // Plasma behind geometry
   drawPlasma(bands,isBeat,alpha*.9);
   ctx.save(); ctx.globalAlpha=alpha;
-  [[.30,spikes,t*.50,.58,2.0,0],[.18,spikes*2,-t*.75,.36,1.5,120],[.10,spikes*3,t*1.1,.20,1.0,240]]
+  [[.30,spikes,t*.50,.70,3.2,0],[.18,spikes*2,-t*.75,.44,2.2,120],[.10,spikes*3,t*1.1,.25,1.4,240]]
   .forEach(([amp,freq,phase,op,lw,hoff])=>{
     const hue=h(hoff);
     ctx.save(); ctx.globalAlpha=alpha*op*(0.35+bands.overall*.65);
@@ -486,8 +487,25 @@ let tunnelAngle=0;
 function drawTunnel(bands,isBeat,alpha=1){
   const W=canvas.width,H=canvas.height,cx=W/2,cy=H/2,t=frame/60;
   tunnelAngle+=.008+bands.bass*.025+(isBeat?.04:0);
-  // Plasma sits behind tunnel geometry
-  drawPlasma(bands,isBeat,alpha*.85);
+
+  // Depth atmosphere — dark fog that parts on beats, gives corridor feel
+  ctx.save();
+  const fogR=Math.max(1,Math.min(W,H)*(.55+bands.bass*.15+(isBeat?.08:0)));
+  const fog=ctx.createRadialGradient(cx,cy,Math.max(1,fogR*.08),cx,cy,fogR*1.4);
+  fog.addColorStop(0,   `hsla(${colorHue},20%,8%,0)`);
+  fog.addColorStop(.35, `hsla(${colorHue},18%,5%,${alpha*.18})`);
+  fog.addColorStop(.7,  `hsla(${colorHue},15%,3%,${alpha*.55})`);
+  fog.addColorStop(1,   `hsla(0,0%,0%,${alpha*.82})`);
+  ctx.fillStyle=fog; ctx.fillRect(0,0,W,H);
+  // Subtle color bleed at the vanishing point
+  const glowR=Math.max(1,fogR*.32+(isBeat?fogR*.12:0));
+  const glow=ctx.createRadialGradient(cx,cy,0,cx,cy,glowR);
+  glow.addColorStop(0,  `hsla(${h(60)},85%,70%,${alpha*(0.12+bands.bass*.18+(isBeat?.15:0))})`);
+  glow.addColorStop(.5, `hsla(${colorHue},80%,50%,${alpha*.06})`);
+  glow.addColorStop(1,  `hsla(${colorHue},70%,35%,0)`);
+  ctx.fillStyle=glow; ctx.beginPath(); ctx.arc(cx,cy,glowR,0,Math.PI*2); ctx.fill();
+  ctx.restore();
+
   ctx.save(); ctx.globalAlpha=alpha;
   for(let i=0;i<28;i++){
     const depth=i/28;
@@ -621,7 +639,69 @@ function drawParticleField(bands,alpha=1){
   ctx.restore();
 }
 
-// ── Freq bars ──
+// ════════════════════════════════
+//  BLOOM — morphing rose curves, abstract flowers
+// ════════════════════════════════
+function drawBloom(bands,isBeat,alpha=1){
+  const W=canvas.width,H=canvas.height,cx=W/2,cy=H/2,t=frame/60;
+  ctx.save(); ctx.globalAlpha=alpha;
+
+  // Plasma background — same dreamy feel as orbital
+  drawPlasma(bands,isBeat,alpha*.7);
+
+  const baseR=Math.min(W,H)*(.28+bands.bass*.16+(isBeat?.06:0));
+
+  // 3 overlapping rose layers, different petal counts and rotation speeds
+  // n=petals when n is odd; 2n petals when n is even
+  const layers=[
+    {n:3+Math.sin(t*.07)*1.5,   speed:t*.12,  hOff:0,   op:.72, lw:1.8+bands.bass*1.2},
+    {n:5+Math.cos(t*.05)*2,     speed:-t*.08, hOff:30,  op:.50, lw:1.2+bands.bass*.8},
+    {n:7+Math.sin(t*.04+1)*2.5, speed:t*.05,  hOff:-25, op:.30, lw:.8},
+  ];
+
+  layers.forEach(({n,speed,hOff,op,lw})=>{
+    const hue=(colorHue+hOff+360)%360;
+    ctx.save();
+    ctx.globalAlpha=alpha*op*(0.4+bands.overall*.6);
+    ctx.strokeStyle=`hsl(${hue},88%,68%)`;
+    ctx.lineWidth=lw;
+    ctx.shadowBlur=14; ctx.shadowColor=`hsl(${hue},100%,70%)`;
+    ctx.beginPath();
+    const steps=360;
+    for(let i=0;i<=steps;i++){
+      const a=(i/steps)*Math.PI*2;
+      // Rhodonea: r = cos(n*a) — petals breathe with frequency data
+      const bi=Math.floor((i/steps)*freqData.length*.3);
+      const fv=freqData?freqData[bi]/255:0;
+      const petalMod=Math.cos(n*(a+speed));
+      const r=baseR*(Math.abs(petalMod)+fv*bands.bass*.35)*(0.7+bands.mid*.5);
+      const px=cx+Math.cos(a)*r, py=cy+Math.sin(a)*r;
+      i===0?ctx.moveTo(px,py):ctx.lineTo(px,py);
+    }
+    ctx.stroke(); ctx.restore();
+  });
+
+  // Petal tips spark on beat
+  if(isBeat){
+    const petalN=Math.round(3+bands.mid*4);
+    for(let i=0;i<petalN*2;i++){
+      const a=(i/(petalN*2))*Math.PI*2;
+      const r=baseR*(1.1+bands.bass*.3);
+      const px=cx+Math.cos(a)*r, py=cy+Math.sin(a)*r;
+      const sparkR=Math.max(1,4+bands.bass*8);
+      const sg=ctx.createRadialGradient(px,py,0,px,py,sparkR*2.5);
+      sg.addColorStop(0,  `hsla(${h(90)},95%,90%,${alpha*.85})`);
+      sg.addColorStop(.5, `hsla(${colorHue},90%,68%,${alpha*.3})`);
+      sg.addColorStop(1,  `hsla(${colorHue},80%,50%,0)`);
+      ctx.fillStyle=sg;
+      ctx.beginPath(); ctx.arc(px,py,sparkR*2.5,0,Math.PI*2); ctx.fill();
+    }
+  }
+
+  ctx.restore();
+}
+
+
 function drawFreqOverlay(){
   if(!freqData) return;
   const W=freqCanvas.width,H=freqCanvas.height,count=96,barW=W/count;
@@ -641,6 +721,7 @@ function drawMode(mode,bands,isBeat,alpha){
     case 'waveform':  drawWaveform(bands,alpha); break;
     case 'tunnel':    drawTunnel(bands,isBeat,alpha); break;
     case 'particles': drawParticleField(bands,alpha); break;
+    case 'bloom':     drawBloom(bands,isBeat,alpha); break;
   }
 }
 
@@ -661,27 +742,8 @@ function loop(){
   updateAutoMode(moodLabel);
   drawBackground(bands);
 
-  if(isBeat&&playing){
-    $('beat-ring').style.opacity='1';
-    $('beat-ring').style.boxShadow=`inset 0 0 160px hsla(${colorHue},90%,70%,.08)`;
-    setTimeout(()=>$('beat-ring').style.opacity='0',90);
-    rings.push(new Ring(canvas.width/2,canvas.height/2,colorHue));
-    if(bands.bass>.4) rings.push(new Ring(canvas.width/2,canvas.height/2,h(180)));
-    const n=Math.floor(5+bands.bass*18);
-    for(let i=0;i<n;i++){
-      const a=Math.random()*Math.PI*2, d=Math.random()*200;
-      beatParticles.push(new BeatParticle(
-        canvas.width/2+Math.cos(a)*d, canvas.height/2+Math.sin(a)*d,
-        (colorHue+(Math.random()-.5)*40+360)%360,
-        3+bands.bass*8, 1.5+Math.random()*4, 50+Math.random()*65));
-    }
-  }
-  if(playing&&Math.random()<bands.high*.25+.012&&beatParticles.length<500){
-    beatParticles.push(new BeatParticle(
-      Math.random()*canvas.width, canvas.height+5,
-      (colorHue+(Math.random()-.5)*35+360)%360,
-      1.5+Math.random()*2, .8+Math.random()*2, 90+Math.random()*130));
-  }
+  // Beat visual events — disabled for now, classes kept for later
+  // if(isBeat&&playing){ ... rings / beatParticles ... }
 
   if(playing){
     if(xfadeAlpha<1){
@@ -695,8 +757,6 @@ function loop(){
     }
   }
 
-  rings.forEach(r=>{r.update();r.draw();}); rings=rings.filter(r=>!r.dead);
-  beatParticles.forEach(p=>{p.update();p.draw();}); beatParticles=beatParticles.filter(p=>p.life>0);
   drawFreqOverlay();
 
   if(playing){
@@ -763,7 +823,7 @@ document.addEventListener('keydown',e=>{
   if(e.key==='Escape') goToLanding();
   if(e.key==='a'||e.key==='A') setMode(autoMode?'orbital':'auto');
   if(e.key==='m'||e.key==='M'){
-    const modes=['auto','orbital','waveform','tunnel','particles'];
+    const modes=['auto','orbital','waveform','tunnel','particles','bloom'];
     const i=(modes.indexOf(autoMode?'auto':visualMode)+1)%modes.length;
     setMode(modes[i]); notify('→ '+modes[i]);
   }
