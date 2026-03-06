@@ -263,16 +263,21 @@ function getBands(){
 function detectBeat(bands){
   const now=performance.now(),e=bands.bass*.65+bands.sub*.35;
   energyHistory.push(e); if(energyHistory.length>43) energyHistory.shift();
+  if(energyHistory.length<6) return false;
   const avg=energyHistory.reduce((a,b)=>a+b,0)/energyHistory.length;
   const variance=energyHistory.reduce((a,b)=>a+(b-avg)**2,0)/energyHistory.length;
-  if(e>(1.35+variance*180)*avg&&now-lastKick>230){
+  // Lowered threshold: 1.18 base (was 1.35), less variance sensitivity
+  if(e>(1.18+variance*90)*avg && now-lastKick>220){
     const delta=now-lastKick;
-    if(delta>200&&delta<2000){
-      beatHistory.push(delta); if(beatHistory.length>8) beatHistory.shift();
-      if(beatHistory.length>=4){
-        let b=Math.round(60000/(beatHistory.reduce((a,b)=>a+b,0)/beatHistory.length));
+    if(delta>200&&delta<2200){
+      beatHistory.push(delta); if(beatHistory.length>10) beatHistory.shift();
+      // Start estimating after just 2 beats, not 4
+      if(beatHistory.length>=2){
+        const avgDelta=beatHistory.reduce((a,b)=>a+b,0)/beatHistory.length;
+        let b=Math.round(60000/avgDelta);
         if(b>200)b=Math.round(b/2); if(b<60)b*=2;
-        bpmSmooth+=(b-bpmSmooth)*.1;
+        // Faster convergence: .25 lerp (was .1)
+        bpmSmooth=bpmSmooth+(b-bpmSmooth)*.25;
       }
     }
     lastKick=now; return true;
@@ -329,7 +334,7 @@ class BeatParticle{
   update(){this.x+=this.vx;this.y+=this.vy;this.vy+=.02;this.vx*=.98;this.life--;this.sz*=.994;}
   draw(){
     const a=(this.life/this.maxLife)*.9;
-    const r=Math.max(.1,this.sz);
+    const r=Math.max(1, this.sz);
     const grd=ctx.createRadialGradient(this.x,this.y,0,this.x,this.y,r*3);
     grd.addColorStop(0,  `hsla(${this.hue},90%,85%,${a})`);
     grd.addColorStop(.4, `hsla(${this.hue},85%,68%,${a*.6})`);
@@ -360,48 +365,92 @@ function drawBackground(bands){
 }
 
 // ════════════════════════════════
-//  LIGHT RAYS — few, long, shadowy, barely geometric
+//  AURORA WISPS — drifting bezier curves from center, no straight lines
 // ════════════════════════════════
-function drawRays(bands,isBeat,cx,cy,alpha,hueBase){
-  const t=frame/60;
-  const rayCount=7; // fewer rays
-  const maxDim=Math.max(canvas.width,canvas.height);
-  const baseLen=maxDim*(.7+bands.bass*.3+(isBeat?.15:0)); // reach towards screen edges
-  const rot=t*.055;
+
+// Persistent wisp state — they drift slowly over time
+const WISP_COUNT = 6;
+const wisps = Array.from({length:WISP_COUNT},(_,i)=>({
+  angleOffset: (i/WISP_COUNT)*Math.PI*2 + Math.random()*.5,
+  driftSpeed:  0.0004 + Math.random()*0.0006,
+  driftPhase:  Math.random()*Math.PI*2,
+  spreadPhase: Math.random()*Math.PI*2,
+  lenScale:    0.55 + Math.random()*.45,
+  hueOffset:   (i/WISP_COUNT)*80 - 40,
+}));
+
+function drawWisps(bands,isBeat,cx,cy,alpha,hueBase){
+  const t = frame/60;
+  const maxDim = Math.max(canvas.width, canvas.height);
+  const energy = bands.bass*.7+bands.overall*.3;
+  const beatBoost = isBeat ? 1.35 : 1;
 
   ctx.save();
-  for(let i=0;i<rayCount;i++){
-    const angle=(i/rayCount)*Math.PI*2+rot;
-    const bi=Math.floor((i/rayCount)*freqData.length*.25);
-    const fv=freqData?(freqData[bi]/255):0;
-    const len=baseLen*(0.5+fv*.7);
-    const hue=(hueBase+i*22)%360;
-    const ex=cx+Math.cos(angle)*len, ey=cy+Math.sin(angle)*len;
 
-    const grad=ctx.createLinearGradient(cx,cy,ex,ey);
-    grad.addColorStop(0,   `hsla(${hue},80%,88%,${alpha*(0.12+fv*.22)})`);
-    grad.addColorStop(.08, `hsla(${hue},85%,70%,${alpha*(0.08+fv*.16)})`);
-    grad.addColorStop(.4,  `hsla(${hue},80%,55%,${alpha*(0.04+fv*.08)})`);
-    grad.addColorStop(1,   `hsla(${hue},75%,40%,0)`);
+  wisps.forEach((w,i)=>{
+    // Slowly drift the main angle
+    w.angleOffset += w.driftSpeed;
 
-    ctx.strokeStyle=grad;
-    ctx.lineWidth=6+fv*10;
-    ctx.shadowBlur=40+fv*60;
-    ctx.shadowColor=`hsla(${hue},100%,60%,0.35)`;
-    ctx.lineCap='round';
-    ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(ex,ey); ctx.stroke();
-  }
+    const bi = Math.floor((i/WISP_COUNT)*freqData.length*.35);
+    const fv = freqData ? freqData[bi]/255 : 0;
 
-  // Core bloom
-  const coreR=10+bands.bass*28+(isBeat?18:0);
-  const cg=ctx.createRadialGradient(cx,cy,0,cx,cy,coreR*4);
-  cg.addColorStop(0,  `hsla(${hueBase},20%,100%,${alpha*.65})`);
-  cg.addColorStop(.25,`hsla(${hueBase},80%,78%,${alpha*.25})`);
-  cg.addColorStop(.7, `hsla(${hueBase},85%,55%,${alpha*.08})`);
-  cg.addColorStop(1,  `hsla(${hueBase},85%,45%,0)`);
-  ctx.shadowBlur=0;
-  ctx.fillStyle=cg;
-  ctx.beginPath(); ctx.arc(cx,cy,coreR*4,0,Math.PI*2); ctx.fill();
+    // Main direction angle — drifts + breathes
+    const angle = w.angleOffset + Math.sin(t*0.18+w.driftPhase)*0.55;
+
+    // Wisp length — breathes with bass
+    const len = maxDim*(w.lenScale*0.55 + energy*.22 + fv*.18)*beatBoost;
+    if(len < 5) return;
+
+    // Control points — offset perpendicular to the main direction
+    // giving the curve a flowing S-bend rather than straight
+    const perp = angle + Math.PI/2;
+    const cp1Dist = len * (0.28 + Math.sin(t*0.22+w.spreadPhase)*0.18);
+    const cp2Dist = len * (0.18 + Math.cos(t*0.17+w.spreadPhase+1)*0.14);
+    const cp1Perp = Math.sin(t*0.13+w.driftPhase)*1.1;
+    const cp2Perp = Math.sin(t*0.11+w.driftPhase+2)*0.8;
+
+    const ex = cx + Math.cos(angle)*len;
+    const ey = cy + Math.sin(angle)*len;
+    const cp1x = cx + Math.cos(angle)*cp1Dist + Math.cos(perp)*cp1Dist*cp1Perp;
+    const cp1y = cy + Math.sin(angle)*cp1Dist + Math.sin(perp)*cp1Dist*cp1Perp;
+    const cp2x = cx + Math.cos(angle)*len*0.62 + Math.cos(perp)*cp2Dist*cp2Perp;
+    const cp2y = cy + Math.sin(angle)*len*0.62 + Math.sin(perp)*cp2Dist*cp2Perp;
+
+    const hue = (hueBase + w.hueOffset + 360)%360;
+    const wispAlpha = alpha*(0.09+fv*.18+energy*.12)*beatBoost;
+
+    // Gradient along the wisp — bright at root, dissolves at tip
+    const grad = ctx.createLinearGradient(cx,cy,ex,ey);
+    grad.addColorStop(0,   `hsla(${hue},85%,90%,${Math.min(.95,wispAlpha*2.2)})`);
+    grad.addColorStop(.12, `hsla(${hue},85%,75%,${wispAlpha*1.4})`);
+    grad.addColorStop(.45, `hsla(${hue},80%,60%,${wispAlpha*.7})`);
+    grad.addColorStop(.75, `hsla(${hue},75%,50%,${wispAlpha*.25})`);
+    grad.addColorStop(1,   `hsla(${hue},70%,40%,0)`);
+
+    // Wide soft stroke — the blur makes it feel volumetric
+    ctx.strokeStyle = grad;
+    ctx.lineWidth = Math.max(1, 18+fv*28+energy*18);
+    ctx.lineCap = 'round';
+    ctx.shadowBlur = 35+fv*45;
+    ctx.shadowColor = `hsla(${hue},100%,65%,0.3)`;
+    ctx.globalAlpha = 1;
+    ctx.beginPath();
+    ctx.moveTo(cx,cy);
+    ctx.bezierCurveTo(cp1x,cp1y,cp2x,cp2y,ex,ey);
+    ctx.stroke();
+  });
+
+  // Core bloom — soft radial glow at the source
+  ctx.shadowBlur = 0;
+  const coreR = Math.max(1, 14+bands.bass*32+(isBeat?22:0));
+  const cg = ctx.createRadialGradient(cx,cy,0,cx,cy,coreR*3.5);
+  cg.addColorStop(0,   `hsla(${hueBase},15%,100%,${alpha*.7})`);
+  cg.addColorStop(.2,  `hsla(${hueBase},75%,82%,${alpha*.3})`);
+  cg.addColorStop(.6,  `hsla(${hueBase},80%,58%,${alpha*.1})`);
+  cg.addColorStop(1,   `hsla(${hueBase},80%,45%,0)`);
+  ctx.fillStyle = cg;
+  ctx.beginPath(); ctx.arc(cx,cy,coreR*3.5,0,Math.PI*2); ctx.fill();
+
   ctx.restore();
 }
 
@@ -428,7 +477,7 @@ function drawOrbital(bands,isBeat,alpha=1){
     }
     ctx.closePath(); ctx.stroke(); ctx.restore();
   });
-  drawRays(bands,isBeat,cx,cy,alpha,colorHue);
+  drawWisps(bands,isBeat,cx,cy,alpha,colorHue);
   ctx.restore();
 }
 
@@ -508,7 +557,7 @@ function drawTunnel(bands,isBeat,alpha=1){
     sg.addColorStop(0,`hsla(${h(180)},100%,92%,.85)`); sg.addColorStop(.4,`hsla(${colorHue},100%,70%,.35)`); sg.addColorStop(1,`hsla(${colorHue},90%,50%,0)`);
     ctx.save(); ctx.globalAlpha=alpha; ctx.fillStyle=sg; ctx.beginPath(); ctx.arc(cx,cy,shockR,0,Math.PI*2); ctx.fill(); ctx.restore();
   }
-  drawRays(bands,isBeat,cx,cy,alpha*1.1,h(60));
+  drawWisps(bands,isBeat,cx,cy,alpha*1.1,h(60));
   ctx.restore();
 }
 
@@ -575,8 +624,7 @@ function drawParticleField(bands,alpha=1){
     const pHue=(colorHue+p.hueOffset+360)%360;
     const size=p.size*(1+bands.bass*.7);
     const pAlpha=alpha*p.baseAlpha*(0.5+bands.overall*.5);
-    const glowR=size*3.5;
-    // Radial gradient gives same soft glow look as shadowBlur but is GPU-cheap
+    const glowR=Math.max(1.5, size*3.5); // guard: never zero
     const grd=ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,glowR);
     grd.addColorStop(0,   `hsla(${pHue},90%,88%,${pAlpha})`);
     grd.addColorStop(.3,  `hsla(${pHue},88%,72%,${pAlpha*.7})`);
