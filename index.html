@@ -9,8 +9,7 @@
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 :root{--bg:#07070d;}
 html,body{width:100%;height:100%;background:var(--bg);color:#fff;font-family:'Space Mono',monospace;overflow:hidden;user-select:none;}
-#canvas{position:fixed;inset:0;width:100%;height:100%;}
-#trail-canvas{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:3;}
+#canvas{position:fixed;inset:0;width:100%;height:100%;z-index:1;}
 #freq-canvas{position:fixed;bottom:0;left:0;width:100%;height:100px;z-index:5;pointer-events:none;}
 #landing-bg{position:fixed;inset:0;z-index:48;transition:opacity .85s,visibility .85s;}
 #landing-bg.gone{opacity:0;visibility:hidden;}
@@ -79,7 +78,6 @@ input[type=file]{display:none;}
 <body>
 <div id="beat-ring"></div>
 <canvas id="canvas"></canvas>
-<canvas id="trail-canvas"></canvas>
 <canvas id="freq-canvas"></canvas>
 <div id="landing-bg"><canvas id="bg-canvas"></canvas></div>
 
@@ -144,15 +142,14 @@ input[type=file]{display:none;}
 //  Synesthétique — Music Visualizer
 // ════════════════════════════════════════════
 const $ = id => document.getElementById(id);
-const canvas      = $('canvas'),       ctx   = canvas.getContext('2d');
-const trailCanvas = $('trail-canvas'), tCtx  = trailCanvas.getContext('2d');
-const freqCanvas  = $('freq-canvas'),  fCtx  = freqCanvas.getContext('2d');
-const bgCanvas    = $('bg-canvas'),    bgCtx = bgCanvas.getContext('2d');
+const canvas    = $('canvas'),     ctx  = canvas.getContext('2d');
+const freqCanvas= $('freq-canvas'),fCtx = freqCanvas.getContext('2d');
+const bgCanvas  = $('bg-canvas'),  bgCtx= bgCanvas.getContext('2d');
 const audio = $('audio');
 
 function resize(){
-  canvas.width = trailCanvas.width = freqCanvas.width = bgCanvas.width = innerWidth;
-  canvas.height = trailCanvas.height = innerHeight;
+  canvas.width = freqCanvas.width = bgCanvas.width = innerWidth;
+  canvas.height = innerHeight;
   freqCanvas.height = 100; bgCanvas.height = innerHeight;
 }
 resize(); window.addEventListener('resize', resize);
@@ -161,16 +158,14 @@ resize(); window.addEventListener('resize', resize);
 let audioCtx, analyser, gainNode, srcNode, freqData, waveData;
 let playing=false, frame=0;
 let visualMode='orbital', autoMode=false;
-let colorHue=200, targetHue=200, bgHue=200;
-let colorSat=85, targetSat=85;
-let bpmSmooth=120, detectedBpm=120;
+let colorHue=200, bgHue=200;
+let bpmSmooth=120;
 let moodLabel='ambient';
 let energyHistory=[], beatHistory=[], lastKick=0;
-let particles=[], rings=[], landingVisible=true;
+let beatParticles=[], rings=[], landingVisible=true;
 
-// AUTO state — fixed: starts seeded properly
-let autoCurrentMode='orbital';
-let autoCandidateMode='orbital';
+// AUTO
+let autoCurrentMode='orbital', autoCandidateMode='orbital';
 let autoCandidateTime=performance.now();
 const AUTO_HOLD_MS=5000;
 
@@ -178,7 +173,7 @@ const AUTO_HOLD_MS=5000;
 let xfadeFrom='orbital', xfadeTo='orbital', xfadeAlpha=1;
 const XFADE_FRAMES=70;
 
-// ── Mood / color definitions — full spectrum ──
+// ── Moods / colors ──
 const MOODS=[
   {label:'euphoric',   minBpm:148, minE:.42, hue:320, sat:95},
   {label:'energetic',  minBpm:128, minE:.36, hue:15,  sat:92},
@@ -194,11 +189,11 @@ const NOTE_HUE={C:0,'C#':30,D:60,'D#':90,E:120,F:150,'F#':180,G:200,'G#':240,A:2
 
 // ── Landing BG ──
 const orbs=[
-  {x:.2, y:.3, vx:.00018, vy:.00012, hue:280, sz:.38},
-  {x:.75,y:.22,vx:-.00015,vy:.00020, hue:20,  sz:.32},
-  {x:.5, y:.72,vx:.00010, vy:-.00018,hue:160, sz:.42},
-  {x:.84,y:.64,vx:-.00020,vy:-.00012,hue:60,  sz:.30},
-  {x:.15,y:.75,vx:.00022, vy:.00008, hue:330, sz:.35},
+  {x:.2, y:.3, vx:.00018, vy:.00012, hue:280,sz:.38},
+  {x:.75,y:.22,vx:-.00015,vy:.00020, hue:20, sz:.32},
+  {x:.5, y:.72,vx:.00010, vy:-.00018,hue:160,sz:.42},
+  {x:.84,y:.64,vx:-.00020,vy:-.00012,hue:60, sz:.30},
+  {x:.15,y:.75,vx:.00022, vy:.00008, hue:330,sz:.35},
 ];
 let bgFrame=0;
 (function animateBg(){
@@ -213,9 +208,9 @@ let bgFrame=0;
     if(o.y<-.15)o.y=1.15;if(o.y>1.15)o.y=-.15;
     const r=o.sz*Math.min(W,H)*(1+Math.sin(bgFrame*.013+o.hue*.01)*.06);
     const g=bgCtx.createRadialGradient(o.x*W,o.y*H,0,o.x*W,o.y*H,r);
-    g.addColorStop(0, `hsla(${o.hue},55%,32%,.18)`);
+    g.addColorStop(0,`hsla(${o.hue},55%,32%,.18)`);
     g.addColorStop(.5,`hsla(${o.hue},50%,22%,.07)`);
-    g.addColorStop(1, `hsla(${o.hue},40%,14%,0)`);
+    g.addColorStop(1,`hsla(${o.hue},40%,14%,0)`);
     bgCtx.fillStyle=g; bgCtx.fillRect(0,0,W,H);
   });
   const vg=bgCtx.createRadialGradient(W/2,H/2,0,W/2,H/2,Math.max(W,H)*.72);
@@ -241,10 +236,9 @@ function setupAudio(src){
   $('landing').classList.add('gone');
   $('landing-bg').classList.add('gone');
   landingVisible=false;
-  particles=[]; rings=[];
+  beatParticles=[]; rings=[];
   energyHistory=[]; beatHistory=[]; lastKick=0;
-  // Clear trail canvas on new track
-  tCtx.clearRect(0,0,trailCanvas.width,trailCanvas.height);
+  initFieldParticles();
 }
 function loadFile(file){
   setupAudio(URL.createObjectURL(file));
@@ -278,7 +272,7 @@ function detectBeat(bands){
       if(beatHistory.length>=4){
         let b=Math.round(60000/(beatHistory.reduce((a,b)=>a+b,0)/beatHistory.length));
         if(b>200)b=Math.round(b/2); if(b<60)b*=2;
-        detectedBpm=b; bpmSmooth+=(b-bpmSmooth)*.1;
+        bpmSmooth+=(b-bpmSmooth)*.1;
       }
     }
     lastKick=now; return true;
@@ -302,68 +296,57 @@ function classifyMood(bands,bpm){
   return MOODS[MOODS.length-1];
 }
 
-// ── AUTO mode — fixed logic ──
+// ── AUTO ──
 function updateAutoMode(label){
   if(!autoMode) return;
   const candidate=MOOD_TO_MODE[label]||'particles';
   const now=performance.now();
-  // Reset timer whenever candidate changes
-  if(candidate!==autoCandidateMode){
-    autoCandidateMode=candidate;
-    autoCandidateTime=now;
-  }
-  // Only switch if candidate has been stable long enough AND it's different from current
+  if(candidate!==autoCandidateMode){ autoCandidateMode=candidate; autoCandidateTime=now; }
   if(candidate!==autoCurrentMode && now-autoCandidateTime>AUTO_HOLD_MS){
-    beginCrossfade(autoCurrentMode, candidate);
+    beginCrossfade(autoCurrentMode,candidate);
     autoCurrentMode=candidate;
-    autoCandidateTime=now; // reset so it doesn't fire again immediately
+    autoCandidateTime=now;
   }
 }
 
 function beginCrossfade(from,to){
-  if(from===to||xfadeAlpha<1) return; // don't interrupt ongoing fade
+  if(from===to||xfadeAlpha<1) return;
   xfadeFrom=from; xfadeTo=to; xfadeAlpha=0;
 }
 
-// ── Helpers ──
-function h(offset){ return (colorHue+offset+360)%360; }
-function getEffectiveMode(){ return autoMode ? autoCurrentMode : visualMode; }
+function h(off){ return (colorHue+off+360)%360; }
+function getEffectiveMode(){ return autoMode?autoCurrentMode:visualMode; }
 
-// ── Beat particles / rings ──
+// ════════════════════════════════
+//  BEAT PARTICLES + RINGS
+// ════════════════════════════════
 class BeatParticle{
   constructor(x,y,hue,spd,sz,life){
-    this.x=x;this.y=y;
-    this.vx=(Math.random()-.5)*spd;this.vy=(Math.random()-.5)*spd-Math.random()*spd*.4;
-    this.hue=hue;this.sz=sz;this.life=life;this.maxLife=life;this.sat=75+Math.random()*20;
+    this.x=x; this.y=y;
+    this.vx=(Math.random()-.5)*spd; this.vy=(Math.random()-.5)*spd-Math.random()*spd*.4;
+    this.hue=hue; this.sz=sz; this.life=life; this.maxLife=life;
   }
   update(){this.x+=this.vx;this.y+=this.vy;this.vy+=.02;this.vx*=.98;this.life--;this.sz*=.994;}
   draw(){
-    ctx.save();ctx.globalAlpha=(this.life/this.maxLife)*.9;
-    ctx.fillStyle=`hsl(${this.hue},${this.sat}%,70%)`;
-    ctx.shadowBlur=this.sz*5;ctx.shadowColor=`hsl(${this.hue},100%,72%)`;
-    ctx.beginPath();ctx.arc(this.x,this.y,Math.max(.1,this.sz),0,Math.PI*2);ctx.fill();
+    ctx.save(); ctx.globalAlpha=(this.life/this.maxLife)*.9;
+    ctx.fillStyle=`hsl(${this.hue},85%,70%)`; ctx.shadowBlur=this.sz*5; ctx.shadowColor=`hsl(${this.hue},100%,72%)`;
+    ctx.beginPath(); ctx.arc(this.x,this.y,Math.max(.1,this.sz),0,Math.PI*2); ctx.fill();
     ctx.restore();
   }
 }
 class Ring{
-  constructor(x,y,hue){
-    this.x=x;this.y=y;this.r=0;
-    this.maxR=Math.min(canvas.width,canvas.height)*.55;
-    this.hue=hue;this.alpha=.7;this.dead=false;this.speed=9+Math.random()*5;
-  }
+  constructor(x,y,hue){ this.x=x;this.y=y;this.r=0;this.maxR=Math.min(canvas.width,canvas.height)*.55;this.hue=hue;this.alpha=.7;this.dead=false;this.speed=9+Math.random()*5; }
   update(){this.r+=this.speed;this.alpha=.7*(1-this.r/this.maxR);if(this.r>=this.maxR)this.dead=true;}
   draw(){
-    ctx.save();ctx.globalAlpha=Math.max(0,this.alpha);
-    ctx.strokeStyle=`hsl(${this.hue},88%,68%)`;ctx.lineWidth=1.5;
-    ctx.shadowBlur=22;ctx.shadowColor=`hsl(${this.hue},100%,72%)`;
-    ctx.beginPath();ctx.arc(this.x,this.y,this.r,0,Math.PI*2);ctx.stroke();
-    ctx.restore();
+    ctx.save(); ctx.globalAlpha=Math.max(0,this.alpha);
+    ctx.strokeStyle=`hsl(${this.hue},88%,68%)`; ctx.lineWidth=1.5; ctx.shadowBlur=22; ctx.shadowColor=`hsl(${this.hue},100%,72%)`;
+    ctx.beginPath(); ctx.arc(this.x,this.y,this.r,0,Math.PI*2); ctx.stroke(); ctx.restore();
   }
 }
 
 // ── Background ──
 function drawBackground(bands){
-  bgHue+=(targetHue-bgHue)*.005;
+  bgHue+=(colorHue-bgHue)*.005;
   const W=canvas.width,H=canvas.height;
   const g=ctx.createRadialGradient(W/2,H/2,0,W/2,H/2,Math.max(W,H)*.85);
   g.addColorStop(0,`hsl(${bgHue},22%,${6+bands.overall*10}%)`);
@@ -373,35 +356,39 @@ function drawBackground(bands){
 }
 
 // ════════════════════════════════
-//  LIGHT RAYS — replaces center balls in orbital + tunnel
+//  LIGHT RAYS — soft, diffuse, not geometric
 // ════════════════════════════════
 function drawRays(bands,isBeat,cx,cy,alpha,hueBase){
   const t=frame/60;
-  const rayCount=14+Math.floor(bands.mid*8);
-  const baseLen=Math.min(canvas.width,canvas.height)*(.28+bands.bass*.22+(isBeat?.12:0));
-  const rot=t*.08;
+  const rayCount=16+Math.floor(bands.mid*6);
+  const baseLen=Math.min(canvas.width,canvas.height)*(.32+bands.bass*.18+(isBeat?.1:0));
+  const rot=t*.07;
 
-  ctx.save(); ctx.globalAlpha=alpha;
+  ctx.save();
   for(let i=0;i<rayCount;i++){
     const angle=(i/rayCount)*Math.PI*2+rot;
     const bi=Math.floor((i/rayCount)*freqData.length*.3);
     const fv=freqData?(freqData[bi]/255):0;
-    const len=baseLen*(0.4+fv*.9+(isBeat?.2:0));
-    const hue=(hueBase+i*12)%360;
-    const lineAlpha=(0.18+fv*.55)*(isBeat?1.4:1);
+    const len=baseLen*(0.35+fv*.8+(isBeat?.15:0));
+    const hue=(hueBase+i*8)%360;
 
-    // Each ray: bright near center, fades to nothing
+    // Very soft: low opacity, wide glow, no hard line feel
+    const lineAlpha=alpha*(0.06+fv*.18)*(isBeat?1.3:1);
+    const lineWidth=3+fv*8; // wide/blurry instead of thin/sharp
+
     const grad=ctx.createLinearGradient(cx,cy,cx+Math.cos(angle)*len,cy+Math.sin(angle)*len);
-    grad.addColorStop(0,  `hsla(${hue},90%,90%,${Math.min(1,lineAlpha*1.5)})`);
-    grad.addColorStop(.15,`hsla(${hue},88%,72%,${lineAlpha})`);
-    grad.addColorStop(.6, `hsla(${hue},85%,60%,${lineAlpha*.4})`);
-    grad.addColorStop(1,  `hsla(${hue},80%,50%,0)`);
+    grad.addColorStop(0,  `hsla(${hue},85%,85%,${Math.min(1,lineAlpha*2.5)})`);
+    grad.addColorStop(.2, `hsla(${hue},85%,70%,${lineAlpha*1.2})`);
+    grad.addColorStop(.65,`hsla(${hue},80%,58%,${lineAlpha*.4})`);
+    grad.addColorStop(1,  `hsla(${hue},75%,45%,0)`);
 
     ctx.save();
     ctx.strokeStyle=grad;
-    ctx.lineWidth=1+fv*2.5;
-    ctx.shadowBlur=8+fv*20;
-    ctx.shadowColor=`hsl(${hue},100%,70%)`;
+    ctx.lineWidth=lineWidth;
+    ctx.shadowBlur=30+fv*50; // heavy blur = light bloom, not a line
+    ctx.shadowColor=`hsla(${hue},100%,65%,0.4)`;
+    ctx.lineCap='round';
+    ctx.globalAlpha=1; // opacity handled in gradient stops
     ctx.beginPath();
     ctx.moveTo(cx,cy);
     ctx.lineTo(cx+Math.cos(angle)*len, cy+Math.sin(angle)*len);
@@ -409,14 +396,15 @@ function drawRays(bands,isBeat,cx,cy,alpha,hueBase){
     ctx.restore();
   }
 
-  // Tiny bright core point (not a ball — just a hot spot)
-  const coreSize=2+bands.bass*6+(isBeat?5:0);
-  const cg=ctx.createRadialGradient(cx,cy,0,cx,cy,coreSize*4);
-  cg.addColorStop(0,`hsla(${hueBase},20%,100%,.9)`);
-  cg.addColorStop(.3,`hsla(${hueBase},90%,80%,.4)`);
-  cg.addColorStop(1,`hsla(${hueBase},90%,60%,0)`);
+  // Soft core bloom — just light, no circle shape
+  const coreR=12+bands.bass*30+(isBeat?20:0);
+  const cg=ctx.createRadialGradient(cx,cy,0,cx,cy,coreR*3);
+  cg.addColorStop(0,`hsla(${hueBase},30%,100%,${alpha*.7})`);
+  cg.addColorStop(.2,`hsla(${hueBase},80%,80%,${alpha*.3})`);
+  cg.addColorStop(.6,`hsla(${hueBase},85%,60%,${alpha*.1})`);
+  cg.addColorStop(1,`hsla(${hueBase},85%,50%,0)`);
   ctx.fillStyle=cg;
-  ctx.beginPath(); ctx.arc(cx,cy,coreSize*4,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(cx,cy,coreR*3,0,Math.PI*2); ctx.fill();
   ctx.restore();
 }
 
@@ -428,89 +416,66 @@ function drawOrbital(bands,isBeat,alpha=1){
   const baseR=Math.min(W,H)*.27+bands.bass*72;
   const spikes=Math.round(5+bands.mid*10);
   ctx.save(); ctx.globalAlpha=alpha;
-
-  // 3 frequency rings — each 120° apart in hue
-  [[.30,spikes,    t*.50,.58,2.0,0  ],
-   [.18,spikes*2, -t*.75,.36,1.5,120],
-   [.10,spikes*3,  t*1.1,.20,1.0,240]
-  ].forEach(([amp,freq,phase,op,lw,hoff])=>{
+  [[.30,spikes,t*.50,.58,2.0,0],[.18,spikes*2,-t*.75,.36,1.5,120],[.10,spikes*3,t*1.1,.20,1.0,240]]
+  .forEach(([amp,freq,phase,op,lw,hoff])=>{
     const hue=h(hoff);
     ctx.save(); ctx.globalAlpha=alpha*op*(0.35+bands.overall*.65);
-    ctx.strokeStyle=`hsl(${hue},90%,65%)`;
-    ctx.lineWidth=lw; ctx.shadowBlur=18; ctx.shadowColor=`hsl(${hue},100%,68%)`;
+    ctx.strokeStyle=`hsl(${hue},90%,65%)`; ctx.lineWidth=lw; ctx.shadowBlur=18; ctx.shadowColor=`hsl(${hue},100%,68%)`;
     ctx.beginPath();
     for(let i=0;i<=360;i++){
       const a=(i/360)*Math.PI*2;
       const bi=Math.floor((i/360)*freqData.length/4);
       const fd=freqData?(freqData[bi]/255)*.4:0;
       const r=baseR*(1+Math.sin(a*freq+phase)*amp+fd*bands.bass);
-      i===0?ctx.moveTo(cx+Math.cos(a)*r,cy+Math.sin(a)*r)
-           :ctx.lineTo(cx+Math.cos(a)*r,cy+Math.sin(a)*r);
+      i===0?ctx.moveTo(cx+Math.cos(a)*r,cy+Math.sin(a)*r):ctx.lineTo(cx+Math.cos(a)*r,cy+Math.sin(a)*r);
     }
     ctx.closePath(); ctx.stroke(); ctx.restore();
   });
-
-  // Light rays instead of ball
   drawRays(bands,isBeat,cx,cy,alpha,colorHue);
   ctx.restore();
 }
 
 // ════════════════════════════════
-//  WAVEFORM — monochromatic, tight hue band
+//  WAVEFORM — monochromatic
 // ════════════════════════════════
 function drawWaveform(bands,alpha=1){
   const W=canvas.width,H=canvas.height,t=frame/60;
   if(!waveData) return;
   ctx.save(); ctx.globalAlpha=alpha;
-
-  // All layers in same hue family — ±18° spread only
-  const layerDefs=[
-    {hOff:0,   op:.82, lw:2.4, ampScale:1.0,  yOff:0},
-    {hOff:12,  op:.55, lw:1.8, ampScale:.75,  yOff: H*.055},
-    {hOff:-12, op:.55, lw:1.8, ampScale:.75,  yOff:-H*.055},
-    {hOff:20,  op:.28, lw:1.0, ampScale:.45,  yOff: H*.11},
-    {hOff:-20, op:.28, lw:1.0, ampScale:.45,  yOff:-H*.11},
-  ];
-
-  layerDefs.forEach(({hOff,op,lw,ampScale,yOff},l)=>{
+  [{hOff:0,op:.82,lw:2.4,ampScale:1.0,yOff:0},
+   {hOff:14,op:.52,lw:1.8,ampScale:.75,yOff:H*.055},
+   {hOff:-14,op:.52,lw:1.8,ampScale:.75,yOff:-H*.055},
+   {hOff:24,op:.26,lw:1.0,ampScale:.45,yOff:H*.11},
+   {hOff:-24,op:.26,lw:1.0,ampScale:.45,yOff:-H*.11}]
+  .forEach(({hOff,op,lw,ampScale,yOff},l)=>{
     const hue=(colorHue+hOff+360)%360;
     const amp=(H*.24)*(1+bands.bass*.85)*ampScale;
     const cy=H*.5+yOff;
     ctx.save(); ctx.globalAlpha=alpha*op;
-    ctx.strokeStyle=`hsl(${hue},88%,65%)`;
-    ctx.lineWidth=lw;
-    ctx.shadowBlur=12; ctx.shadowColor=`hsl(${hue},100%,68%)`;
+    ctx.strokeStyle=`hsl(${hue},88%,65%)`; ctx.lineWidth=lw; ctx.shadowBlur=12; ctx.shadowColor=`hsl(${hue},100%,68%)`;
     ctx.beginPath();
     for(let i=0;i<waveData.length;i++){
       const x=(i/waveData.length)*W;
-      const wm=Math.sin(i*.007+t*(1.2+l*.3))*.12;
-      const y=cy+(waveData[i]/128-1)*amp*(1+wm);
+      const y=cy+(waveData[i]/128-1)*amp*(1+Math.sin(i*.007+t*(1.2+l*.3))*.12);
       i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
     }
     ctx.stroke(); ctx.restore();
   });
-
-  // subtle center line
-  ctx.save(); ctx.globalAlpha=alpha*.08;
-  ctx.strokeStyle='rgba(255,255,255,.5)';
-  ctx.lineWidth=.5; ctx.setLineDash([4,14]);
-  ctx.beginPath(); ctx.moveTo(0,H/2); ctx.lineTo(W,H/2); ctx.stroke();
-  ctx.setLineDash([]); ctx.restore();
+  ctx.save(); ctx.globalAlpha=alpha*.07; ctx.strokeStyle='rgba(255,255,255,.5)'; ctx.lineWidth=.5; ctx.setLineDash([4,14]);
+  ctx.beginPath(); ctx.moveTo(0,H/2); ctx.lineTo(W,H/2); ctx.stroke(); ctx.setLineDash([]); ctx.restore();
   ctx.restore();
 }
 
 // ════════════════════════════════
-//  TUNNEL — neon vortex with light rays at core
+//  TUNNEL
 // ════════════════════════════════
 let tunnelAngle=0;
 function drawTunnel(bands,isBeat,alpha=1){
   const W=canvas.width,H=canvas.height,cx=W/2,cy=H/2,t=frame/60;
   tunnelAngle+=.008+bands.bass*.025+(isBeat?.04:0);
   ctx.save(); ctx.globalAlpha=alpha;
-
-  const layers=28;
-  for(let i=0;i<layers;i++){
-    const depth=i/layers;
+  for(let i=0;i<28;i++){
+    const depth=i/28;
     const sz=(1-depth)*Math.min(W,H)*.52;
     const bi=Math.floor(depth*freqData.length*.4);
     const fv=freqData?freqData[bi]/255:0;
@@ -520,52 +485,38 @@ function drawTunnel(bands,isBeat,alpha=1){
     const sides=(Math.round(3+bands.mid*5+depth*3)%8)+3;
     const twist=tunnelAngle*(1+depth*1.5)+depth*Math.PI*.4;
     const wobble=1+Math.sin(t*3+depth*8)*bands.bass*.2;
-
-    ctx.save();
-    ctx.globalAlpha=alpha*(1-depth)*.72;
+    ctx.save(); ctx.globalAlpha=alpha*(1-depth)*.72;
     ctx.strokeStyle=`hsl(${hue},${85+fv*15}%,${50+fv*20}%)`;
-    ctx.lineWidth=1.2+fv*2.5;
-    ctx.shadowBlur=20+fv*30; ctx.shadowColor=`hsl(${compHue},100%,72%)`;
+    ctx.lineWidth=1.2+fv*2.5; ctx.shadowBlur=20+fv*30; ctx.shadowColor=`hsl(${compHue},100%,72%)`;
     ctx.beginPath();
     for(let j=0;j<=sides;j++){
       const a=(j/sides)*Math.PI*2+twist;
-      j===0?ctx.moveTo(cx+Math.cos(a)*sz*.5*wobble*pulse, cy+Math.sin(a)*sz*.5/wobble*pulse)
-           :ctx.lineTo(cx+Math.cos(a)*sz*.5*wobble*pulse, cy+Math.sin(a)*sz*.5/wobble*pulse);
+      j===0?ctx.moveTo(cx+Math.cos(a)*sz*.5*wobble*pulse,cy+Math.sin(a)*sz*.5/wobble*pulse)
+           :ctx.lineTo(cx+Math.cos(a)*sz*.5*wobble*pulse,cy+Math.sin(a)*sz*.5/wobble*pulse);
     }
     ctx.closePath(); ctx.stroke(); ctx.restore();
-
     if(i<8&&fv>.3){
-      ctx.save();
-      ctx.globalAlpha=alpha*(1-depth)*.22*fv;
+      ctx.save(); ctx.globalAlpha=alpha*(1-depth)*.22*fv;
       ctx.strokeStyle=`hsl(${compHue},100%,75%)`; ctx.lineWidth=.8;
       for(let s=0;s<sides;s++){
         const a=(s/sides)*Math.PI*2+twist;
-        ctx.beginPath(); ctx.moveTo(cx,cy);
-        ctx.lineTo(cx+Math.cos(a)*sz*.5*pulse, cy+Math.sin(a)*sz*.5*pulse);
-        ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(cx+Math.cos(a)*sz*.5*pulse,cy+Math.sin(a)*sz*.5*pulse); ctx.stroke();
       }
       ctx.restore();
     }
   }
-
-  // Beat shockwave
   if(isBeat){
     const shockR=Math.min(W,H)*.1;
     const sg=ctx.createRadialGradient(cx,cy,0,cx,cy,shockR);
-    sg.addColorStop(0,`hsla(${h(180)},100%,92%,.85)`);
-    sg.addColorStop(.4,`hsla(${colorHue},100%,70%,.35)`);
-    sg.addColorStop(1,`hsla(${colorHue},90%,50%,0)`);
-    ctx.save(); ctx.globalAlpha=alpha; ctx.fillStyle=sg;
-    ctx.beginPath(); ctx.arc(cx,cy,shockR,0,Math.PI*2); ctx.fill(); ctx.restore();
+    sg.addColorStop(0,`hsla(${h(180)},100%,92%,.85)`); sg.addColorStop(.4,`hsla(${colorHue},100%,70%,.35)`); sg.addColorStop(1,`hsla(${colorHue},90%,50%,0)`);
+    ctx.save(); ctx.globalAlpha=alpha; ctx.fillStyle=sg; ctx.beginPath(); ctx.arc(cx,cy,shockR,0,Math.PI*2); ctx.fill(); ctx.restore();
   }
-
-  // Light rays from tunnel core instead of ball
-  drawRays(bands,isBeat,cx,cy,alpha*1.2,h(60));
+  drawRays(bands,isBeat,cx,cy,alpha*1.1,h(60));
   ctx.restore();
 }
 
 // ════════════════════════════════
-//  PARTICLES — monochromatic + comet trails
+//  PARTICLES — trail stored per-particle, drawn on main canvas
 // ════════════════════════════════
 let fieldP=[];
 function initFieldParticles(){
@@ -574,84 +525,74 @@ function initFieldParticles(){
   for(let i=0;i<200;i++) fieldP.push({
     x:Math.random()*W, y:Math.random()*H,
     vx:(Math.random()-.5)*.4, vy:(Math.random()-.5)*.4,
-    // Varied sizes — more big ones
-    size:Math.random()<.3 ? 3+Math.random()*5 : 1+Math.random()*3,
-    // Tight hue band per particle — will track colorHue with small offset
-    hueOffset:(Math.random()-.5)*30,
-    alpha:0.3+Math.random()*.5,
-    // Trail history: array of {x,y} positions
-    trail:[],
-    trailLen:Math.floor(8+Math.random()*22), // different trail lengths
-    // Momentum damping — some particles lazier than others
-    drag:0.96+Math.random()*.025,
+    size: Math.random()<.3 ? 3.5+Math.random()*5 : 1.2+Math.random()*3,
+    hueOffset:(Math.random()-.5)*28,
+    baseAlpha:0.35+Math.random()*.5,
+    trailLen: Math.floor(10+Math.random()*25),
+    drag: 0.962+Math.random()*.022,
+    trail:[], // stored as flat [x0,y0,x1,y1,...] for perf
   });
-}
-
-// Trail rendering on its own canvas with fade
-function fadeTrails(){
-  tCtx.globalCompositeOperation='destination-out';
-  tCtx.fillStyle='rgba(0,0,0,0.045)'; // trail persistence — lower = longer trails
-  tCtx.fillRect(0,0,trailCanvas.width,trailCanvas.height);
-  tCtx.globalCompositeOperation='source-over';
 }
 
 function drawParticleField(bands,alpha=1){
   const W=canvas.width,H=canvas.height,t=frame/60;
 
-  // Fade trails on the trail canvas
-  fadeTrails();
-
   fieldP.forEach(p=>{
-    const bi=Math.min(Math.floor(p.x/W*8)*8+Math.floor(p.y/H*8),freqData?freqData.length-1:0);
-    const force=(freqData?freqData[bi]/255:0)*.55;
+    // Physics
+    const bi=Math.min(Math.floor(p.x/W*8)*8+Math.floor(p.y/H*8), freqData?freqData.length-1:0);
+    const fv=(freqData?freqData[bi]/255:0)*.55;
     const angle=Math.sin(p.x*.004+t*.8)+Math.cos(p.y*.004+t*.6);
-    p.vx+=Math.cos(angle)*force*.4;
-    p.vy+=Math.sin(angle)*force*.4+bands.bass*.035;
+    p.vx+=Math.cos(angle)*fv*.4; p.vy+=Math.sin(angle)*fv*.4+bands.bass*.03;
     p.vx*=p.drag; p.vy*=p.drag;
     p.x+=p.vx; p.y+=p.vy;
-    if(p.x<0)p.x=W;if(p.x>W)p.x=0;if(p.y<0)p.y=H;if(p.y>H)p.y=0;
+    if(p.x<0)p.x=W; if(p.x>W)p.x=0; if(p.y<0)p.y=H; if(p.y>H)p.y=0;
 
-    // Monochromatic: all particles stay in tight band around colorHue
     const pHue=(colorHue+p.hueOffset+360)%360;
     const size=p.size*(1+bands.bass*.7);
-    const pAlpha=alpha*p.alpha*(0.5+bands.overall*.5);
+    const pAlpha=alpha*p.baseAlpha*(0.5+bands.overall*.5);
 
-    // Draw trail on trail canvas
-    p.trail.push({x:p.x,y:p.y});
-    if(p.trail.length>p.trailLen) p.trail.shift();
-    if(p.trail.length>1){
-      for(let i=1;i<p.trail.length;i++){
-        const trailAlpha=pAlpha*(i/p.trail.length)*.6;
-        const trailSize=size*(i/p.trail.length)*.7;
-        tCtx.save();
-        tCtx.globalAlpha=trailAlpha;
-        tCtx.fillStyle=`hsl(${pHue},85%,65%)`;
-        tCtx.shadowBlur=trailSize*3; tCtx.shadowColor=`hsl(${pHue},100%,70%)`;
-        tCtx.beginPath(); tCtx.arc(p.trail[i].x,p.trail[i].y,Math.max(.1,trailSize),0,Math.PI*2); tCtx.fill();
-        tCtx.restore();
+    // Store trail
+    p.trail.push(p.x, p.y);
+    const maxPts=p.trailLen*2;
+    if(p.trail.length>maxPts) p.trail.splice(0, p.trail.length-maxPts);
+
+    const pts=p.trail.length/2;
+
+    // Draw trail segments — each gets progressively smaller and more transparent
+    if(pts>1){
+      ctx.save();
+      for(let i=0;i<pts-1;i++){
+        const frac=(i+1)/pts; // 0=oldest 1=newest
+        const tx=p.trail[i*2], ty=p.trail[i*2+1];
+        const trailSize=Math.max(.1, size*frac*.65);
+        ctx.globalAlpha=pAlpha*frac*frac*.7; // quadratic falloff = long gentle comet
+        ctx.fillStyle=`hsl(${pHue},85%,${55+frac*15}%)`;
+        ctx.shadowBlur=trailSize*4;
+        ctx.shadowColor=`hsl(${pHue},100%,70%)`;
+        ctx.beginPath(); ctx.arc(tx,ty,trailSize,0,Math.PI*2); ctx.fill();
       }
+      ctx.restore();
     }
 
-    // Draw particle head on main canvas
+    // Particle head — brightest point
     ctx.save();
     ctx.globalAlpha=pAlpha;
-    ctx.fillStyle=`hsl(${pHue},90%,72%)`;
-    ctx.shadowBlur=size*6; ctx.shadowColor=`hsl(${pHue},100%,76%)`;
+    ctx.fillStyle=`hsl(${pHue},90%,74%)`;
+    ctx.shadowBlur=size*7; ctx.shadowColor=`hsl(${pHue},100%,78%)`;
     ctx.beginPath(); ctx.arc(p.x,p.y,size,0,Math.PI*2); ctx.fill();
     ctx.restore();
   });
 
-  // Connection lines — also monochromatic
+  // Connection web
   ctx.save(); ctx.lineWidth=.5;
   for(let i=0;i<fieldP.length;i+=2){
     for(let j=i+1;j<fieldP.length;j+=2){
-      const dx=fieldP[i].x-fieldP[j].x,dy=fieldP[i].y-fieldP[j].y;
+      const dx=fieldP[i].x-fieldP[j].x, dy=fieldP[i].y-fieldP[j].y;
       const d=Math.sqrt(dx*dx+dy*dy);
-      if(d<100){
-        ctx.globalAlpha=alpha*(.7-d/100)*.1*bands.overall;
-        ctx.strokeStyle=`hsl(${colorHue},75%,65%)`;
-        ctx.beginPath(); ctx.moveTo(fieldP[i].x,fieldP[i].y);
-        ctx.lineTo(fieldP[j].x,fieldP[j].y); ctx.stroke();
+      if(d<95){
+        ctx.globalAlpha=alpha*(.65-d/95)*.1*bands.overall;
+        ctx.strokeStyle=`hsl(${colorHue},72%,65%)`;
+        ctx.beginPath(); ctx.moveTo(fieldP[i].x,fieldP[i].y); ctx.lineTo(fieldP[j].x,fieldP[j].y); ctx.stroke();
       }
     }
   }
@@ -672,7 +613,6 @@ function drawFreqOverlay(){
   }
 }
 
-// ── Mode router ──
 function drawMode(mode,bands,isBeat,alpha){
   switch(mode){
     case 'orbital':   drawOrbital(bands,isBeat,alpha); break;
@@ -692,17 +632,13 @@ function loop(){
   const mood=classifyMood(bands,bpmSmooth);
   moodLabel=mood.label;
 
-  // Hue: shortest-path interpolation around 360° wheel
-  const moodHue=mood.hue, noteHue=NOTE_HUE[note]||0;
-  const rawTarget=moodHue*.6+noteHue*.4;
+  const rawTarget=mood.hue*.6+(NOTE_HUE[note]||0)*.4;
   const diff=((rawTarget-colorHue+540)%360)-180;
   colorHue=(colorHue+diff*.04+360)%360;
-  targetHue=colorHue; bgHue=colorHue;
 
   updateAutoMode(moodLabel);
   drawBackground(bands);
 
-  // Beat events
   if(isBeat&&playing){
     $('beat-ring').style.opacity='1';
     $('beat-ring').style.boxShadow=`inset 0 0 160px hsla(${colorHue},90%,70%,.08)`;
@@ -711,41 +647,34 @@ function loop(){
     if(bands.bass>.4) rings.push(new Ring(canvas.width/2,canvas.height/2,h(180)));
     const n=Math.floor(5+bands.bass*18);
     for(let i=0;i<n;i++){
-      const a=Math.random()*Math.PI*2,d=Math.random()*200;
-      particles.push(new BeatParticle(
+      const a=Math.random()*Math.PI*2, d=Math.random()*200;
+      beatParticles.push(new BeatParticle(
         canvas.width/2+Math.cos(a)*d, canvas.height/2+Math.sin(a)*d,
         (colorHue+(Math.random()-.5)*40+360)%360,
         3+bands.bass*8, 1.5+Math.random()*4, 50+Math.random()*65));
     }
   }
-  if(playing&&Math.random()<bands.high*.25+.012&&particles.length<500){
-    particles.push(new BeatParticle(
+  if(playing&&Math.random()<bands.high*.25+.012&&beatParticles.length<500){
+    beatParticles.push(new BeatParticle(
       Math.random()*canvas.width, canvas.height+5,
       (colorHue+(Math.random()-.5)*35+360)%360,
       1.5+Math.random()*2, .8+Math.random()*2, 90+Math.random()*130));
   }
 
-  // Crossfade draw
   if(playing){
     if(xfadeAlpha<1){
       xfadeAlpha=Math.min(1,xfadeAlpha+1/XFADE_FRAMES);
       drawMode(xfadeFrom,bands,isBeat,1-xfadeAlpha);
-      drawMode(xfadeTo,  bands,isBeat,xfadeAlpha);
+      drawMode(xfadeTo,bands,isBeat,xfadeAlpha);
     } else {
       const eff=getEffectiveMode();
-      // Keep xfade state synced when not fading
       if(xfadeTo!==eff){ xfadeFrom=eff; xfadeTo=eff; }
       drawMode(eff,bands,isBeat,1);
     }
   }
 
-  // Stamp trail canvas onto main canvas (behind particles, above background)
-  ctx.save(); ctx.globalAlpha=.85;
-  ctx.drawImage(trailCanvas,0,0);
-  ctx.restore();
-
   rings.forEach(r=>{r.update();r.draw();}); rings=rings.filter(r=>!r.dead);
-  particles.forEach(p=>{p.update();p.draw();}); particles=particles.filter(p=>p.life>0);
+  beatParticles.forEach(p=>{p.update();p.draw();}); beatParticles=beatParticles.filter(p=>p.life>0);
   drawFreqOverlay();
 
   if(playing){
@@ -759,35 +688,29 @@ function loop(){
 loop(); initFieldParticles();
 
 // ════════════════════════════════
-//  UI EVENTS
+//  UI
 // ════════════════════════════════
 function goToLanding(){
   audio.pause(); playing=false; landingVisible=true;
-  tCtx.clearRect(0,0,trailCanvas.width,trailCanvas.height);
   $('landing').classList.remove('gone');
   $('landing-bg').classList.remove('gone');
   $('hud').classList.remove('visible');
 }
-
 function setMode(mode){
   document.querySelectorAll('.mode-btn').forEach(b=>b.classList.remove('active'));
   document.querySelector(`[data-mode="${mode}"]`)?.classList.add('active');
   if(mode==='auto'){
-    autoMode=true;
-    $('auto-label').classList.add('visible');
-    // Seed auto from current effective mode
+    autoMode=true; $('auto-label').classList.add('visible');
     const cur=getEffectiveMode();
-    autoCurrentMode=cur; autoCandidateMode=cur;
-    autoCandidateTime=performance.now();
+    autoCurrentMode=cur; autoCandidateMode=cur; autoCandidateTime=performance.now();
     xfadeFrom=cur; xfadeTo=cur; xfadeAlpha=1;
     notify('AUTO — listening to mood');
   } else {
     const prev=getEffectiveMode();
-    autoMode=false;
-    $('auto-label').classList.remove('visible');
+    autoMode=false; $('auto-label').classList.remove('visible');
     visualMode=mode;
     beginCrossfade(prev,mode);
-    if(mode==='particles'){ initFieldParticles(); tCtx.clearRect(0,0,trailCanvas.width,trailCanvas.height); }
+    if(mode==='particles') initFieldParticles();
     if(mode==='tunnel') tunnelAngle=0;
   }
 }
@@ -799,25 +722,18 @@ $('dropbox').addEventListener('dragleave',()=>$('dropbox').classList.remove('dra
 $('dropbox').addEventListener('drop',e=>{e.preventDefault();$('dropbox').classList.remove('drag-over');if(e.dataTransfer.files[0])loadFile(e.dataTransfer.files[0]);});
 document.addEventListener('dragover',e=>e.preventDefault());
 document.addEventListener('drop',e=>{e.preventDefault();if(e.dataTransfer.files[0]&&e.target!==$('dropbox'))loadFile(e.dataTransfer.files[0]);});
-
 $('btn-play').addEventListener('click',()=>{if(audio.src){playing?audio.pause():audio.play();}});
 audio.addEventListener('play',()=>{playing=true;$('btn-play').innerHTML=`<svg viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>`;});
 audio.addEventListener('pause',()=>{playing=false;$('btn-play').innerHTML=`<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>`;});
 $('vol-slider').addEventListener('input',e=>{if(gainNode)gainNode.gain.value=+e.target.value;});
-$('progress-wrap').addEventListener('click',e=>{
-  const r=$('progress-wrap').getBoundingClientRect();
-  if(audio.duration) audio.currentTime=((e.clientX-r.left)/r.width)*audio.duration;
-});
+$('progress-wrap').addEventListener('click',e=>{const r=$('progress-wrap').getBoundingClientRect();if(audio.duration)audio.currentTime=((e.clientX-r.left)/r.width)*audio.duration;});
 $('btn-new').addEventListener('click',()=>$('file-input-hidden').click());
 $('file-input-hidden').addEventListener('change',e=>{if(e.target.files[0]){loadFile(e.target.files[0]);e.target.value='';}});
 $('logo-sm-btn').addEventListener('click',goToLanding);
 document.querySelectorAll('.mode-btn').forEach(btn=>btn.addEventListener('click',()=>setMode(btn.dataset.mode)));
 
 let notifTimer;
-function notify(msg){
-  const el=$('notif');el.textContent=msg;el.classList.add('show');
-  clearTimeout(notifTimer);notifTimer=setTimeout(()=>el.classList.remove('show'),3000);
-}
+function notify(msg){const el=$('notif');el.textContent=msg;el.classList.add('show');clearTimeout(notifTimer);notifTimer=setTimeout(()=>el.classList.remove('show'),3000);}
 
 document.addEventListener('keydown',e=>{
   if(['INPUT','TEXTAREA'].includes(e.target.tagName)) return;
@@ -827,7 +743,7 @@ document.addEventListener('keydown',e=>{
   if(e.key==='m'||e.key==='M'){
     const modes=['auto','orbital','waveform','tunnel','particles'];
     const i=(modes.indexOf(autoMode?'auto':visualMode)+1)%modes.length;
-    setMode(modes[i]); notify('→ '+(modes[i]));
+    setMode(modes[i]); notify('→ '+modes[i]);
   }
 });
 </script>
